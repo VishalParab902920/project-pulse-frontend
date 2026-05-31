@@ -1,0 +1,87 @@
+@import "tailwindcss";
+
+/* ============================================================
+   Project Pulse — Design System (Tailwind CSS v4)
+   "Midnight & Glow" / Tech-Noir Glassmorphism Theme
+   Source of truth: DESIGN.md Section 1
+   ============================================================ */
+
+@theme inline {
+  /* --- Typography --- */
+  --font-sans: "Geist Sans", "Inter", sans-serif;
+
+  /* --- Colors: Base & Surface --- */
+  --color-base: #050505;
+  --color-surface-solid: #111113;
+  --color-surface-glass: rgba(17, 17, 19, 0.7);
+
+  /* --- Colors: Borders --- */
+  --color-border-glass: rgba(255, 255, 255, 0.08);
+  --color-border-muted: rgba(255, 255, 255, 0.04);
+
+  /* --- Colors: Accents --- */
+  --color-accent-indigo: #6366F1;
+  --color-accent-purple: #A855F7;
+  --color-accent-cyan: #06B6D4;
+
+  /* --- Colors: Status --- */
+  --color-status-success: #059669;
+  --color-status-amber: #D97706;
+  --color-status-rose: #E11D48;
+
+  /* --- Border Radius --- */
+  --radius-card: 24px;
+  --radius-button: 16px;
+  --radius-pill: 9999px;
+}
+
+/* ============================================================
+   Global Base Styles
+   Implements the Obsidian base + ambient mesh gradient
+   (DESIGN.md Section 2.1)
+   ============================================================ */
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  background-color: var(--color-base);
+  background-image: radial-gradient(
+    ellipse 80% 80% at 50% -20%,
+    rgba(99, 102, 241, 0.12),
+    rgba(255, 255, 255, 0)
+  );
+  color: white;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ============================================================
+   Glassmorphism Utility Class
+   (DESIGN.md Section 2.2)
+   Usage: class="glass-card"
+   ============================================================ */
+
+.glass-card {
+  background: var(--color-surface-glass);
+  border: 1px solid var(--color-border-glass);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  box-shadow:
+    0 8px 32px 0 rgba(0, 0, 0, 0.37),
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.05);
+  border-radius: var(--radius-card);
+}
+
+/* ============================================================
+   AI Gradient Utility
+   (DESIGN.md Section 4.1 — Omnibar mic glow)
+   ============================================================ */
+
+.ai-glow {
+  background: linear-gradient(to right, #6366F1, #A855F7, #06B6D4);
+}

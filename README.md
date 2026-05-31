@@ -1,36 +1,80 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Project Pulse — Frontend
 
-## Getting Started
+Next.js 16 (App Router) frontend for Project Pulse — AI-Native Fitness Concierge.
 
-First, run the development server:
+## Tech Stack
+
+- **Framework:** Next.js 16 (App Router) + TypeScript
+- **Styling:** Tailwind CSS v4 (Tech-Noir Glassmorphism theme)
+- **Animations:** Framer Motion
+- **Icons:** Lucide React
+- **Charts:** Recharts
+- **State:** React hooks + IndexedDB (offline)
+
+## Features
+
+- **Multimodal Omnibar:** Text, camera (with compression), hold-to-speak audio
+- **Photo + Caption:** Attach image preview, add optional caption, combined upload
+- **Review Queue:** Tinder-style card stack with swipe gestures, edit modal, sponsor cards
+- **Progress Rings:** Real-time calorie/protein/movement tracking
+- **Dashboard:** Weight trend chart, consistency tracker, biometrics, AI coaching insight
+- **Onboarding:** 3-step wizard (persona, preferences, goals)
+- **Offline-First:** IndexedDB storage + automatic sync on reconnect
+- **BYOK Settings:** Encrypted API key management
+- **Health Sync:** Foreground visibility-based step/heart rate sync
+
+## Setup
 
 ```bash
+npm install
+cp .env.local.example .env.local  # Fill in your values
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open http://localhost:3000
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Build
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run build
+npm start
+```
 
-## Learn More
+## Environment Variables
 
-To learn more about Next.js, take a look at the following resources:
+| Variable | Description |
+|----------|-------------|
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon/public key |
+| `NEXT_PUBLIC_BACKEND_URL` | FastAPI backend URL |
+| `BACKEND_API_URL` | Backend URL for server-side routes |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Project Structure
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```
+src/
+├── app/
+│   ├── page.tsx           # Main home stream + routing
+│   ├── settings/page.tsx  # BYOK settings
+│   ├── api/health/        # Frontend health check route
+│   └── globals.css        # Design system tokens
+├── components/
+│   ├── Omnibar.tsx        # Multimodal input bar
+│   ├── ReviewQueue.tsx    # Card stack + sponsor cards
+│   ├── ParsedCards.tsx    # Food/workout/biometric cards
+│   ├── ProgressRings.tsx  # SVG ring indicators
+│   ├── Dashboard.tsx      # Analytics overlay
+│   └── Onboarding.tsx     # Setup wizard
+├── hooks/
+│   └── useHealthSync.ts   # Foreground health sync
+└── lib/
+    ├── types.ts           # TypeScript interfaces
+    ├── utils.ts           # cn() utility
+    ├── supabase.ts        # Supabase client
+    ├── indexedDb.ts       # Offline storage
+    └── image-utils.ts     # Canvas compression
+```
 
-## Deploy on Vercel
+## Deployment
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Deploy to Vercel with root directory set to `frontend`. See `DEPLOY.md` in the project root for full instructions.
