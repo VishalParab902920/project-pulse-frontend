@@ -196,21 +196,33 @@ export default function OmnibarModal({ isOpen, onClose }: OmnibarModalProps) {
     }
   }, [messages]);
 
-  // Check mic permission on mount
+  // Check mic permission on mount — uses Direct MediaStream Probe for Safari/iOS compatibility
+  // (navigator.permissions.query is not supported for 'microphone' on Safari)
   useEffect(() => {
     if (!isOpen) return;
-    if (typeof navigator === "undefined" || !navigator.permissions) return;
+    if (typeof window === "undefined" || !window.isSecureContext) return;
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setMicPermission("denied");
+      return;
+    }
 
-    navigator.permissions
-      .query({ name: "microphone" as PermissionName })
-      .then((result) => {
-        setMicPermission(result.state as "granted" | "denied" | "prompt");
-        result.onchange = () => {
-          setMicPermission(result.state as "granted" | "denied" | "prompt");
-        };
+    // Attempt a quick probe to check if permission was previously granted
+    // This won't show a prompt on most browsers if already granted
+    navigator.mediaDevices
+      .getUserMedia({ audio: true })
+      .then((stream) => {
+        // Permission granted — immediately release the mic
+        stream.getTracks().forEach((track) => track.stop());
+        setMicPermission("granted");
       })
-      .catch(() => {
-        // Permissions API not supported — will check on first use
+      .catch((err) => {
+        // NotAllowedError = denied, other errors = prompt state
+        if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
+          setMicPermission("denied");
+        } else {
+          // Likely "prompt" state or device not available
+          setMicPermission("prompt");
+        }
       });
   }, [isOpen]);
 
@@ -431,6 +443,19 @@ export default function OmnibarModal({ isOpen, onClose }: OmnibarModalProps) {
 
   // Start recording
   const startRecording = useCallback(async () => {
+    // Guard: require secure context (HTTPS) for microphone access
+    if (typeof window !== "undefined" && !window.isSecureContext) {
+      console.warn("[MIC] Microphone requires a secure context (HTTPS)");
+      setMicPermission("denied");
+      return;
+    }
+
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      console.warn("[MIC] getUserMedia not available");
+      setMicPermission("denied");
+      return;
+    }
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {

@@ -43,6 +43,8 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   viewportFit: "cover",
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({
@@ -57,6 +59,19 @@ export default function RootLayout({
         <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        {/* Disable zoom only when running as installed PWA (standalone mode) */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone) {
+                var meta = document.createElement('meta');
+                meta.name = 'viewport';
+                meta.content = 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover';
+                document.head.appendChild(meta);
+              }
+            `,
+          }}
+        />
       </head>
       <body>
         <ErrorBoundary>{children}</ErrorBoundary>
