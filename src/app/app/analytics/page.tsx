@@ -220,7 +220,7 @@ export default function AnalyticsPage() {
             </div>
             <div>
               <p className="text-xs font-medium text-white">
-                Weekly Pulse Report
+                Weekly Kayan Report
               </p>
               <p className="text-[9px] text-gray-500">
                 Generated{" "}

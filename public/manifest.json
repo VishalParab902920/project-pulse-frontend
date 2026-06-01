@@ -1,0 +1,24 @@
+{
+  "name": "Kayan: Elite Bio-Concierge",
+  "short_name": "Kayan",
+  "description": "An AI-native, enterprise-scale biological tracking companion and fitness concierge.",
+  "start_url": "/app",
+  "display": "standalone",
+  "background_color": "#050505",
+  "theme_color": "#050505",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/logo.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

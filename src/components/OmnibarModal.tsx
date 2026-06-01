@@ -439,7 +439,7 @@ export default function OmnibarModal({ isOpen, onClose }: OmnibarModalProps) {
             <div className="h-7 w-7 rounded-lg ai-glow flex items-center justify-center">
               <Sparkles className="h-3.5 w-3.5 text-white" />
             </div>
-            <span className="text-sm font-medium text-white">Pulse AI</span>
+            <span className="text-sm font-medium text-white">Kayan AI</span>
           </div>
           <button
             onClick={onClose}
@@ -585,7 +585,7 @@ export default function OmnibarModal({ isOpen, onClose }: OmnibarModalProps) {
               <div className="bg-accent-purple/10 border border-accent-purple/20 rounded-2xl px-4 py-3 space-y-1.5">
                 <div className="flex items-center gap-2">
                   <Loader2 className="h-3.5 w-3.5 text-accent-purple animate-spin" />
-                  <span className="text-xs text-gray-300">Pulse AI is analyzing...</span>
+                  <span className="text-xs text-gray-300">Kayan AI is analyzing...</span>
                 </div>
                 <div className="flex gap-1">
                   <motion.div className="w-8 h-1.5 rounded-full bg-white/10" animate={{ opacity: [0.3, 0.7, 0.3] }} transition={{ duration: 1, repeat: Infinity, delay: 0 }} />
