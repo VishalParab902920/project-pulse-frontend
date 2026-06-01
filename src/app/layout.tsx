@@ -15,7 +15,7 @@ export const metadata: Metadata = {
   themeColor: "#050505",
   appleWebApp: {
     capable: true,
-    statusBarStyle: "black-translucent",
+    statusBarStyle: "default",
   },
   openGraph: {
     title: "Kayan-AI",
@@ -42,7 +42,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  viewportFit: "cover",
+  viewportFit: "auto",
   width: "device-width",
   initialScale: 1,
 };
@@ -58,7 +58,7 @@ export default function RootLayout({
         <link rel="manifest" href="/manifest.json" />
         <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         {/* Disable zoom only when running as installed PWA (standalone mode) */}
         <script
           dangerouslySetInnerHTML={{
@@ -73,7 +73,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body>
+      <body className="pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
         <ErrorBoundary>{children}</ErrorBoundary>
       </body>
     </html>
