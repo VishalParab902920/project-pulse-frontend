@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Minus, Plus, Scale, Loader2, Check } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { useUIStore } from "@/store/useUIStore";
+import { useDateStore } from "@/store/useDateStore";
 
 /**
  * WeightLogModal — Glassmorphic slide-up weight dial overlay.
@@ -87,6 +88,7 @@ export default function WeightLogModal({
   const handleLog = useCallback(async () => {
     if (weight <= 0 || weight > 500) return;
     setIsLogging(true);
+    const { selectedDate } = useDateStore.getState();
 
     try {
       const res = await apiFetch("/api/v2/profile/biometrics/weight", {
@@ -94,7 +96,7 @@ export default function WeightLogModal({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           weight_kg: weight,
-          logged_at: new Date().toISOString().split("T")[0],
+          logged_at: selectedDate,
         }),
       });
 

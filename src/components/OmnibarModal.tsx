@@ -18,6 +18,7 @@ import { useCacheStore } from "@/store/useCacheStore";
 import { getAccessToken } from "@/lib/auth";
 import { apiFetch } from "@/lib/api";
 import { useUIStore } from "@/store/useUIStore";
+import { useSWR } from "@/hooks/useSWR";
 import AudioWaveform from "@/components/AudioWaveform";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
@@ -61,6 +62,18 @@ interface ChatMessage {
 interface OmnibarModalProps {
   isOpen: boolean;
   onClose: () => void;
+}
+
+interface HistoryMessage {
+  id: string;
+  role: string;
+  content: string;
+  created_at: string | null;
+}
+
+interface HistoryResponse {
+  conversation_id: string;
+  messages: HistoryMessage[];
 }
 
 function getSupportedMimeType(): { mimeType: string; extension: string } {
@@ -107,6 +120,51 @@ export default function OmnibarModal({ isOpen, onClose }: OmnibarModalProps) {
   // Camera/photo capture state
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // SWR History Hydration — fetch chat history on modal mount
+  const { data: historyData, isLoading: historyLoading } = useSWR<HistoryResponse>(
+    "/api/v2/ai/history"
+  );
+
+  // Hydrate local messages state from history data (once loaded, only if messages are empty)
+  const historyHydratedRef = useRef(false);
+  useEffect(() => {
+    if (!historyData || historyHydratedRef.current) return;
+    if (historyData.messages && historyData.messages.length > 0) {
+      const hydrated: ChatMessage[] = historyData.messages.map((msg) => {
+        // Attempt to parse structured JSON payload from content
+        let parsedType: "nutrition" | "training" | undefined;
+        let parsedPayload: NutritionPayload | TrainingPayload | undefined;
+
+        if (msg.role === "assistant") {
+          try {
+            const parsed = JSON.parse(msg.content);
+            if (parsed && parsed.type && parsed.payload) {
+              parsedType = parsed.type as "nutrition" | "training";
+              parsedPayload = parsed.payload;
+            }
+          } catch {
+            // Content is plain text, not JSON — that's fine
+          }
+        }
+
+        return {
+          id: msg.id,
+          role: msg.role as "user" | "assistant",
+          content: parsedType && parsedPayload
+            ? (JSON.parse(msg.content).summary_text || msg.content)
+            : msg.content,
+          timestamp: msg.created_at
+            ? new Date(msg.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+            : "",
+          type: parsedType,
+          payload: parsedPayload,
+        };
+      });
+      setMessages(hydrated);
+      historyHydratedRef.current = true;
+    }
+  }, [historyData]);
+
   // Auto-scroll chat to bottom
   useEffect(() => {
     if (chatEndRef.current) {
@@ -138,6 +196,10 @@ export default function OmnibarModal({ isOpen, onClose }: OmnibarModalProps) {
       mediaStream.getTracks().forEach((track) => track.stop());
       setMediaStream(null);
       setIsRecording(false);
+    }
+    // Reset hydration flag when modal closes so history re-fetches on next open
+    if (!isOpen) {
+      historyHydratedRef.current = false;
     }
   }, [isOpen, mediaStream]);
 
@@ -451,7 +513,16 @@ export default function OmnibarModal({ isOpen, onClose }: OmnibarModalProps) {
 
         {/* Chat History */}
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4 transform-gpu">
-          {messages.length === 0 && (
+          {historyLoading && messages.length === 0 && (
+            <div className="flex flex-col items-center justify-center h-full text-center">
+              <div className="h-10 w-10 rounded-full ai-glow animate-pulse flex items-center justify-center mb-3">
+                <Loader2 className="h-5 w-5 text-white animate-spin" />
+              </div>
+              <p className="text-xs text-gray-500">Loading conversation...</p>
+            </div>
+          )}
+
+          {messages.length === 0 && !historyLoading && (
             <div className="flex flex-col items-center justify-center h-full text-center">
               <motion.div
                 animate={{

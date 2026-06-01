@@ -360,7 +360,7 @@ export default function DashboardPage() {
           </button>
         </div>
 
-        {weightChartData.length > 1 ? (
+        {weightChartData.length >= 1 ? (
           <div className="h-36 w-full min-h-[1px]">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={weightChartData} margin={{ top: 4, right: 4, left: 4, bottom: 0 }}>
@@ -376,7 +376,7 @@ export default function DashboardPage() {
                   dataKey="weight"
                   stroke="#06B6D4"
                   strokeWidth={2}
-                  dot={{ r: 2.5, fill: "#06B6D4", strokeWidth: 0 }}
+                  dot={{ r: 3, fill: "#06B6D4", strokeWidth: 0 }}
                   activeDot={{ r: 4, fill: "#06B6D4", strokeWidth: 2, stroke: "#fff" }}
                 />
               </LineChart>

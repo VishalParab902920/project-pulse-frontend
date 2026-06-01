@@ -311,6 +311,7 @@ export default function OnboardingPage() {
           gender,
           dob,
           height_cm: heightCm,
+          weight_kg: weightKg,
           activity_level: activityLevel,
           fitness_goal: fitnessGoal,
           calculated_bmr: calculations.bmr,
