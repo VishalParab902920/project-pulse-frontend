@@ -40,6 +40,7 @@ export default function ProfilePage() {
 
   const [biometrics, setBiometrics] = useState<BiometricData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
 
   // BYOK state
   const [byokKey, setByokKey] = useState("");
@@ -64,6 +65,11 @@ export default function ProfilePage() {
       })
       .catch(() => {})
       .finally(() => setIsLoading(false));
+
+    // Fetch user email from Supabase session
+    supabase.auth.getUser().then(({ data }) => {
+      if (data.user?.email) setUserEmail(data.user.email);
+    });
   }, [accessToken]);
 
   const handleByokSave = useCallback(async () => {
@@ -153,7 +159,12 @@ export default function ProfilePage() {
       {/* Header */}
       <div className="flex items-center gap-2 mb-2">
         <User className="h-4 w-4 text-accent-purple" />
-        <h1 className="text-base font-semibold text-white">Profile</h1>
+        <div>
+          <h1 className="text-base font-semibold text-white">Profile</h1>
+          {userEmail && (
+            <p className="text-[11px] text-gray-500">{userEmail}</p>
+          )}
+        </div>
       </div>
 
       {/* Biometric Summary */}
