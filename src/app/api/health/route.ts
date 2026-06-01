@@ -21,7 +21,7 @@ export async function GET() {
 
   // --- Ping FastAPI backend health endpoint ---
   try {
-    const response = await fetch(`${BACKEND_API_URL}/api/v1/health`, {
+    const response = await fetch(`${BACKEND_API_URL}/api/v2/health`, {
       method: "GET",
       headers: { "Content-Type": "application/json" },
       signal: AbortSignal.timeout(5000),
