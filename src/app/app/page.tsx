@@ -50,12 +50,24 @@ interface HealthSummary {
   sleep_duration_seconds: number | null;
 }
 
-interface NutritionSummary {
-  total_calories: number;
-  total_protein: number;
-  total_carbs: number;
-  total_fat: number;
-  total_water_ml: number;
+interface FoodData {
+  calories_per_100g: number;
+  protein_per_100g: number;
+  carbs_per_100g: number;
+  fat_per_100g: number;
+}
+
+interface NutritionLog {
+  id: string;
+  serving_size_g: number;
+  food: FoodData | null;
+}
+
+interface DiaryData {
+  breakfast: NutritionLog[];
+  lunch: NutritionLog[];
+  dinner: NutritionLog[];
+  snack: NutritionLog[];
 }
 
 interface MetricPoint {
@@ -91,9 +103,9 @@ export default function DashboardPage() {
   const { data: bioData } = useSWR<Targets & { target_calories: number; target_protein_g: number; target_carbs_g: number; target_fat_g: number }>(
     "/api/v2/profile/biometrics"
   );
-  const { data: nutritionData, isLoading: nutLoading } = useSWR<NutritionSummary>(
-    `/api/v2/nutrition/summary/${selectedDate}`,
-    undefined,
+  const { data: diaryData, isLoading: nutLoading } = useSWR<DiaryData>(
+    "/api/v2/nutrition/diary",
+    selectedDate,
     60000
   );
   const { data: healthData } = useSWR<HealthSummary>(
@@ -118,7 +130,30 @@ export default function DashboardPage() {
     fat: bioData?.target_fat_g || bioData?.fat || 73,
   };
 
-  const eaten: NutritionSummary = nutritionData || { total_calories: 0, total_protein: 0, total_carbs: 0, total_fat: 0, total_water_ml: 0 };
+  // Calculate eaten macros dynamically from diary logs (same source as Diary page)
+  const eaten = (() => {
+    if (!diaryData) return { total_calories: 0, total_protein: 0, total_carbs: 0, total_fat: 0 };
+    const allLogs = [
+      ...(diaryData.breakfast || []),
+      ...(diaryData.lunch || []),
+      ...(diaryData.dinner || []),
+      ...(diaryData.snack || []),
+    ];
+    return allLogs.reduce(
+      (acc, log) => {
+        if (!log.food) return acc;
+        const ratio = log.serving_size_g / 100;
+        return {
+          total_calories: acc.total_calories + log.food.calories_per_100g * ratio,
+          total_protein: acc.total_protein + log.food.protein_per_100g * ratio,
+          total_carbs: acc.total_carbs + log.food.carbs_per_100g * ratio,
+          total_fat: acc.total_fat + log.food.fat_per_100g * ratio,
+        };
+      },
+      { total_calories: 0, total_protein: 0, total_carbs: 0, total_fat: 0 }
+    );
+  })();
+
   const burned = healthData?.active_calories_burned || 0;
 
   // Process step data into hourly buckets
@@ -165,7 +200,7 @@ export default function DashboardPage() {
   }));
   const currentWeight = weightChartData.length > 0 ? weightChartData[weightChartData.length - 1].weight : 75;
 
-  if (nutLoading && !nutritionData) {
+  if (nutLoading && !diaryData) {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 className="h-5 w-5 text-accent-purple animate-spin" />
