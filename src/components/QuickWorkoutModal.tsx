@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Plus, Minus, Trash2, Search, Loader2, Check, Dumbbell } from "lucide-react";
+import { X, Plus, Minus, Trash2, Search, Loader2, Check, Dumbbell, Info } from "lucide-react";
 import { useUserStore } from "@/store/useUserStore";
 import { getAccessToken } from "@/lib/auth";
 import { apiFetch } from "@/lib/api";
@@ -10,6 +10,46 @@ import { useUIStore } from "@/store/useUIStore";
 import { useDateStore } from "@/store/useDateStore";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
+
+// ---------------------------------------------------------------------------
+// Tap-friendly Tooltip (works on mobile via tap, desktop via hover)
+// ---------------------------------------------------------------------------
+function Tooltip({ text, children }: { text: string; children: React.ReactNode }) {
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    if (!visible) return;
+    const timer = setTimeout(() => setVisible(false), 3000);
+    return () => clearTimeout(timer);
+  }, [visible]);
+
+  return (
+    <span className="relative inline-flex items-center">
+      <span
+        onClick={(e) => { e.stopPropagation(); setVisible((v) => !v); }}
+        onMouseEnter={() => setVisible(true)}
+        onMouseLeave={() => setVisible(false)}
+        className="cursor-pointer touch-manipulation"
+      >
+        {children}
+      </span>
+      <AnimatePresence>
+        {visible && (
+          <motion.span
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 4 }}
+            transition={{ duration: 0.15 }}
+            className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 z-[80] w-max max-w-[180px] rounded-lg bg-gray-900 border border-white/10 px-2.5 py-1.5 text-[10px] leading-tight text-gray-200 text-center shadow-lg pointer-events-none"
+          >
+            {text}
+            <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
+          </motion.span>
+        )}
+      </AnimatePresence>
+    </span>
+  );
+}
 
 interface SetRow {
   set_number: number;
@@ -79,6 +119,13 @@ export default function QuickWorkoutModal({ isOpen, onClose, onWorkoutLogged }: 
   }, []);
 
   const updateSet = useCallback((exIdx: number, setIdx: number, field: "weight_kg" | "reps" | "rpe", value: string) => {
+    // Clamp RPE between 1 and 10
+    if (field === "rpe" && value !== "") {
+      const num = parseFloat(value);
+      if (!isNaN(num)) {
+        value = String(Math.min(10, Math.max(1, num)));
+      }
+    }
     setExercises((prev) => prev.map((ex, i) => i === exIdx ? { ...ex, sets: ex.sets.map((s, si) => si === setIdx ? { ...s, [field]: value } : s) } : ex));
   }, []);
 
@@ -117,50 +164,54 @@ export default function QuickWorkoutModal({ isOpen, onClose, onWorkoutLogged }: 
 
   return (
     <AnimatePresence>
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm" onClick={onClose}>
+      <motion.div key="quick-workout-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm" onClick={onClose}>
         <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} transition={{ type: "spring", damping: 30, stiffness: 300 }} onClick={(e) => e.stopPropagation()} className="absolute bottom-0 left-0 right-0 max-h-[90dvh] rounded-t-3xl bg-surface-solid border-t border-white/10 overflow-hidden flex flex-col">
           <div className="flex justify-center pt-3 pb-2"><div className="w-10 h-1 rounded-full bg-white/20" /></div>
-          <div className="flex items-center justify-between px-5 pb-3">
+          <div className="flex items-center justify-between px-4 pb-3">
             <div className="flex items-center gap-2">
-              <Dumbbell className="h-4 w-4 text-accent-purple" />
-              <h2 className="text-base font-semibold text-white">Quick Log Workout</h2>
+              <Dumbbell className="h-5 w-5 text-accent-purple" />
+              <h2 className="text-lg font-semibold text-white">Quick Log Workout</h2>
             </div>
-            <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/5 text-gray-400"><X className="h-4 w-4" /></button>
+            <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/5 text-gray-400"><X className="h-5 w-5" /></button>
           </div>
 
-          <div className="flex-1 overflow-y-auto px-5 pb-6 space-y-4 transform-gpu">
+          <div className="flex-1 overflow-y-auto px-4 pb-6 space-y-4 transform-gpu">
             {/* Session Name */}
             <input type="text" value={sessionName} onChange={(e) => setSessionName(e.target.value)} placeholder="Session name (e.g., Leg Day)" className="w-full rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-sm text-white placeholder-gray-600 outline-none focus:border-accent-purple" />
 
             {/* Exercise Cards */}
             {exercises.map((ex, exIdx) => (
-              <div key={`${ex.exercise_id}-${exIdx}`} className="glass-card p-3 space-y-2">
+              <div key={`${ex.exercise_id}-${exIdx}`} className="rounded-2xl bg-white/[0.03] border border-white/10 p-3 space-y-2">
                 <div className="flex items-center justify-between">
-                  <p className="text-xs font-semibold text-white">{ex.exercise_name}</p>
-                  <button onClick={() => removeExercise(exIdx)} className="p-1 text-gray-600 hover:text-status-rose"><Trash2 className="h-3.5 w-3.5" /></button>
+                  <p className="text-sm font-semibold text-white">{ex.exercise_name}</p>
+                  <button onClick={() => removeExercise(exIdx)} className="p-1.5 text-gray-600 hover:text-status-rose"><Trash2 className="h-3.5 w-3.5" /></button>
                 </div>
                 {/* Set Header */}
-                <div className="grid grid-cols-[30px_1fr_1fr_60px_30px] gap-1.5 text-[8px] text-gray-600 uppercase px-1">
-                  <span>Set</span><span>Kg</span><span>Reps</span><span>RPE</span><span></span>
+                <div className="grid grid-cols-[24px_1fr_1fr_1fr_24px] gap-2 text-[10px] text-gray-500 uppercase tracking-wide px-0.5">
+                  <span>#</span>
+                  <Tooltip text="Weight in kilograms"><span className="flex items-center gap-0.5">Kg <Info className="h-2.5 w-2.5 text-gray-600" /></span></Tooltip>
+                  <Tooltip text="Number of repetitions performed"><span className="flex items-center gap-0.5">Reps <Info className="h-2.5 w-2.5 text-gray-600" /></span></Tooltip>
+                  <Tooltip text="Rate of Perceived Exertion (1–10). How hard the set felt. Optional."><span className="flex items-center gap-0.5">RPE <Info className="h-2.5 w-2.5 text-gray-600" /></span></Tooltip>
+                  <span></span>
                 </div>
                 {/* Set Rows */}
                 {ex.sets.map((s, setIdx) => (
-                  <div key={setIdx} className="grid grid-cols-[30px_1fr_1fr_60px_30px] gap-1.5 items-center">
-                    <span className="text-[10px] text-gray-500 text-center">{s.set_number}</span>
-                    <input type="number" value={s.weight_kg} onChange={(e) => updateSet(exIdx, setIdx, "weight_kg", e.target.value)} placeholder="—" className="rounded-lg bg-white/5 border border-white/10 px-2 py-1.5 text-xs text-white text-center outline-none focus:border-accent-purple [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
-                    <input type="number" value={s.reps} onChange={(e) => updateSet(exIdx, setIdx, "reps", e.target.value)} placeholder="—" className="rounded-lg bg-white/5 border border-white/10 px-2 py-1.5 text-xs text-white text-center outline-none focus:border-accent-purple [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
-                    <input type="number" value={s.rpe} onChange={(e) => updateSet(exIdx, setIdx, "rpe", e.target.value)} placeholder="—" className="rounded-lg bg-white/5 border border-white/10 px-2 py-1.5 text-xs text-white text-center outline-none focus:border-accent-purple [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
-                    <button onClick={() => removeSet(exIdx, setIdx)} className="p-0.5 text-gray-700 hover:text-status-rose"><Minus className="h-3 w-3" /></button>
+                  <div key={setIdx} className="grid grid-cols-[24px_1fr_1fr_1fr_24px] gap-2 items-center">
+                    <span className="text-xs text-gray-500 text-center">{s.set_number}</span>
+                    <input type="number" inputMode="decimal" value={s.weight_kg} onChange={(e) => updateSet(exIdx, setIdx, "weight_kg", e.target.value)} placeholder="—" min="0" step="0.5" className="w-full min-w-0 rounded-lg bg-white/5 border border-white/10 px-2 py-2 text-xs text-white text-center outline-none focus:border-accent-purple [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                    <input type="number" inputMode="numeric" value={s.reps} onChange={(e) => updateSet(exIdx, setIdx, "reps", e.target.value)} placeholder="—" min="0" step="1" className="w-full min-w-0 rounded-lg bg-white/5 border border-white/10 px-2 py-2 text-xs text-white text-center outline-none focus:border-accent-purple [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                    <input type="number" inputMode="decimal" value={s.rpe} onChange={(e) => updateSet(exIdx, setIdx, "rpe", e.target.value)} placeholder="—" min="1" max="10" step="0.5" className="w-full min-w-0 rounded-lg bg-white/5 border border-white/10 px-2 py-2 text-xs text-white text-center outline-none focus:border-accent-purple [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                    <button onClick={() => removeSet(exIdx, setIdx)} className="p-0.5 text-gray-700 hover:text-status-rose flex items-center justify-center"><Minus className="h-3.5 w-3.5" /></button>
                   </div>
                 ))}
-                <button onClick={() => addSet(exIdx)} className="w-full flex items-center justify-center gap-1 rounded-lg bg-white/[0.03] border border-white/5 py-1.5 text-[9px] text-gray-500 hover:text-white transition-colors">
-                  <Plus className="h-2.5 w-2.5" />Add Set
+                <button onClick={() => addSet(exIdx)} className="w-full flex items-center justify-center gap-1 rounded-lg bg-white/[0.03] border border-white/5 py-2 text-[10px] text-gray-500 hover:text-white transition-colors">
+                  <Plus className="h-3 w-3" />Add Set
                 </button>
               </div>
             ))}
 
             {/* Add Exercise */}
-            <button onClick={() => setShowSearch(true)} className="w-full flex items-center justify-center gap-2 rounded-xl bg-white/5 border border-white/10 border-dashed py-3 text-xs font-medium text-gray-400 hover:text-white hover:border-white/20 transition-colors">
+            <button onClick={() => setShowSearch(true)} className="w-full flex items-center justify-center gap-2 rounded-xl bg-white/[0.03] border border-white/10 border-dashed py-3.5 text-xs font-medium text-gray-400 hover:text-white hover:border-white/20 transition-colors">
               <Plus className="h-4 w-4" />Add Exercise
             </button>
 
@@ -174,7 +225,7 @@ export default function QuickWorkoutModal({ isOpen, onClose, onWorkoutLogged }: 
 
       {/* Exercise Search Sub-Modal */}
       {showSearch && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[70] bg-black/60 backdrop-blur-sm flex items-end" onClick={() => setShowSearch(false)}>
+        <motion.div key="exercise-search-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[70] bg-black/60 backdrop-blur-sm flex items-end" onClick={() => setShowSearch(false)}>
           <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} transition={{ type: "spring", damping: 30, stiffness: 300 }} onClick={(e) => e.stopPropagation()} className="w-full max-h-[50dvh] rounded-t-3xl bg-surface-solid border-t border-white/10 p-5 flex flex-col">
             <div className="relative mb-3">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
