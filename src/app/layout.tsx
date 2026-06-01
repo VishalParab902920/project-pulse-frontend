@@ -9,12 +9,23 @@ const geistSans = Geist({
 });
 
 export const metadata: Metadata = {
-  title: "Kayan",
-  description: "AI-native elite bio-concierge and fitness tracking companion",
+  title: "Kayan-AI",
+  description: "Your personal AI-powered fitness concierge. Track nutrition, log workouts, and get intelligent coaching, all through voice or text. Built for anyone ready to get fit.",
   themeColor: "#050505",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
+  },
+  openGraph: {
+    title: "Kayan-AI",
+    description: "Your personal AI-powered fitness concierge. Track nutrition, log workouts, and get intelligent coaching, all through voice or text. Built for anyone ready to get fit.",
+    siteName: "Kayan",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Kayan-AI",
+    description: "Your personal AI-powered fitness concierge. Track nutrition, log workouts, and get intelligent coaching, all through voice or text.",
   },
 };
 

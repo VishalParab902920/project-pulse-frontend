@@ -1,7 +1,7 @@
 {
-  "name": "Kayan: Elite Bio-Concierge",
+  "name": "Kayan-AI",
   "short_name": "Kayan",
-  "description": "An AI-native, enterprise-scale biological tracking companion and fitness concierge.",
+  "description": "Your personal AI-powered fitness concierge. Track nutrition, log workouts, and get intelligent coaching, all through voice or text. Built for anyone ready to get fit.",
   "start_url": "/app",
   "display": "standalone",
   "background_color": "#050505",
