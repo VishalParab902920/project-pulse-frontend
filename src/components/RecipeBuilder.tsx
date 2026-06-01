@@ -6,6 +6,7 @@ import { X, Search, Plus, Trash2, Loader2, Check, ChefHat } from "lucide-react";
 import { useUserStore } from "@/store/useUserStore";
 import { getAccessToken } from "@/lib/auth";
 import { apiFetch } from "@/lib/api";
+import { useUIStore } from "@/store/useUIStore";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
 
@@ -150,6 +151,9 @@ export default function RecipeBuilder({ isOpen, onClose, onRecipeSaved }: Recipe
     }),
     { calories: 0, protein: 0, carbs: 0, fat: 0 }
   );
+  const { setModalOpen } = useUIStore();
+  useEffect(() => { setModalOpen(isOpen); return () => { setModalOpen(false); }; }, [isOpen, setModalOpen]);
+
 
   if (!isOpen) return null;
 
@@ -282,19 +286,19 @@ export default function RecipeBuilder({ isOpen, onClose, onRecipeSaved }: Recipe
                 {/* Total Macros */}
                 <div className="grid grid-cols-4 gap-2 mt-2">
                   <div className="rounded-lg bg-white/[0.03] p-2 text-center">
-                    <p className="text-xs font-bold text-white">{Math.round(totalMacros.calories)}</p>
+                    <p className="text-xs font-bold text-white">{totalMacros.calories.toFixed(1)}</p>
                     <p className="text-[8px] text-gray-500">kcal</p>
                   </div>
                   <div className="rounded-lg bg-white/[0.03] p-2 text-center">
-                    <p className="text-xs font-bold text-accent-cyan">{Math.round(totalMacros.protein)}g</p>
+                    <p className="text-xs font-bold text-accent-cyan">{totalMacros.protein.toFixed(1)}g</p>
                     <p className="text-[8px] text-gray-500">Protein</p>
                   </div>
                   <div className="rounded-lg bg-white/[0.03] p-2 text-center">
-                    <p className="text-xs font-bold text-accent-purple">{Math.round(totalMacros.carbs)}g</p>
+                    <p className="text-xs font-bold text-accent-purple">{totalMacros.carbs.toFixed(1)}g</p>
                     <p className="text-[8px] text-gray-500">Carbs</p>
                   </div>
                   <div className="rounded-lg bg-white/[0.03] p-2 text-center">
-                    <p className="text-xs font-bold text-accent-indigo">{Math.round(totalMacros.fat)}g</p>
+                    <p className="text-xs font-bold text-accent-indigo">{totalMacros.fat.toFixed(1)}g</p>
                     <p className="text-[8px] text-gray-500">Fat</p>
                   </div>
                 </div>
@@ -329,3 +333,5 @@ export default function RecipeBuilder({ isOpen, onClose, onRecipeSaved }: Recipe
     </AnimatePresence>
   );
 }
+
+

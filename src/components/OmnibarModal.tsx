@@ -17,6 +17,7 @@ import { useDateStore } from "@/store/useDateStore";
 import { useCacheStore } from "@/store/useCacheStore";
 import { getAccessToken } from "@/lib/auth";
 import { apiFetch } from "@/lib/api";
+import { useUIStore } from "@/store/useUIStore";
 import AudioWaveform from "@/components/AudioWaveform";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
@@ -172,9 +173,9 @@ export default function OmnibarModal({ isOpen, onClose }: OmnibarModalProps) {
           formData.append("text", textQuery);
         }
 
-        // Strict 15-second timeout via AbortController
+        // Strict 30-second timeout via AbortController
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 15000);
+        const timeoutId = setTimeout(() => controller.abort(), 30000);
 
         const res = await apiFetch(`/api/v2/ai/capture`, {
           method: "POST",
@@ -229,7 +230,7 @@ export default function OmnibarModal({ isOpen, onClose }: OmnibarModalProps) {
         // Determine if it was a timeout or a network error
         const isTimeout = err instanceof DOMException && err.name === "AbortError";
         const errorContent = isTimeout
-          ? "AI processing timed out (15s). Please verify your BYOK key or try again."
+          ? "AI processing timed out (30s). Please verify your BYOK key or try again."
           : "AI processing failed. Please verify your BYOK key or try again.";
 
         const assistantMsg: ChatMessage = {
@@ -417,6 +418,9 @@ export default function OmnibarModal({ isOpen, onClose }: OmnibarModalProps) {
       navigator.vibrate(15);
     }
   }, []);
+
+  const { setModalOpen } = useUIStore();
+  useEffect(() => { setModalOpen(isOpen); return () => { setModalOpen(false); }; }, [isOpen, setModalOpen]);
 
   if (!isOpen) return null;
 

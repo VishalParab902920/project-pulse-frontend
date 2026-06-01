@@ -6,6 +6,7 @@ import { X, Plus, Minus, Trash2, Search, Loader2, Check, Dumbbell } from "lucide
 import { useUserStore } from "@/store/useUserStore";
 import { getAccessToken } from "@/lib/auth";
 import { apiFetch } from "@/lib/api";
+import { useUIStore } from "@/store/useUIStore";
 import { useDateStore } from "@/store/useDateStore";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
@@ -108,6 +109,9 @@ export default function QuickWorkoutModal({ isOpen, onClose, onWorkoutLogged }: 
       if (res.ok) { onWorkoutLogged(); onClose(); }
     } catch {} finally { setIsSaving(false); }
   }, [exercises, sessionName, selectedDate, accessToken, onWorkoutLogged, onClose]);
+  const { setModalOpen } = useUIStore();
+  useEffect(() => { setModalOpen(isOpen); return () => { setModalOpen(false); }; }, [isOpen, setModalOpen]);
+
 
   if (!isOpen) return null;
 
@@ -191,3 +195,5 @@ export default function QuickWorkoutModal({ isOpen, onClose, onWorkoutLogged }: 
     </AnimatePresence>
   );
 }
+
+

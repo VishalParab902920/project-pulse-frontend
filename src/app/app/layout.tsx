@@ -47,7 +47,7 @@ function LoadingFallback() {
 function AppShellContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { isResolving } = useOnboardingGuard();
-  const { isOmnibarOpen, closeOmnibar } = useUIStore();
+  const { isOmnibarOpen, closeOmnibar, isModalOpen } = useUIStore();
 
   if (isResolving) {
     return <LoadingFallback />;
@@ -67,18 +67,22 @@ function AppShellContent({ children }: { children: React.ReactNode }) {
   }
 
   // Standard app shell with full navigation
+  const isWorkoutSubRoute = pathname !== "/app/workout" && pathname?.startsWith("/app/workout/");
+
   return (
     <div className="min-h-[100dvh] bg-base text-white">
       <ConnectionMonitor />
       <PerformanceMonitor />
-      <AppNavigation />
+      {!isWorkoutSubRoute && <AppNavigation />}
 
-      <div className="md:ml-20 flex flex-col min-h-[100dvh]">
-        <header className="sticky top-0 z-40">
-          <DateSwitcher />
-        </header>
+      <div className={`${!isWorkoutSubRoute ? "md:ml-20" : ""} flex flex-col min-h-[100dvh]`}>
+        {pathname !== "/app/profile" && !isWorkoutSubRoute && !isModalOpen && (
+          <header className="sticky top-0 z-40">
+            <DateSwitcher />
+          </header>
+        )}
 
-        <main className="flex-1 overflow-y-auto pb-20 md:pb-6">
+        <main className={`flex-1 overflow-y-auto ${isWorkoutSubRoute ? "pb-6" : "pb-20 md:pb-6"}`}>
           <AnimatePresence mode="wait">
             <motion.div
               key={pathname}

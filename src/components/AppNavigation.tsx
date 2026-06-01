@@ -7,7 +7,7 @@ import {
   LayoutDashboard,
   BookOpen,
   Sparkles,
-  TrendingUp,
+  Dumbbell,
   User,
 } from "lucide-react";
 import { useUIStore } from "@/store/useUIStore";
@@ -34,13 +34,13 @@ const navItems: NavItem[] = [
   { href: "/app", label: "Dashboard", icon: LayoutDashboard },
   { href: "/app/diary", label: "Diary", icon: BookOpen },
   { href: "#omnibar", label: "Capture", icon: Sparkles, isOmnibar: true },
-  { href: "/app/analytics", label: "Analytics", icon: TrendingUp },
+  { href: "/app/workout", label: "Workouts", icon: Dumbbell },
   { href: "/app/profile", label: "Profile", icon: User },
 ];
 
 export default function AppNavigation() {
   const pathname = usePathname();
-  const { openOmnibar } = useUIStore();
+  const { openOmnibar, isNavHidden } = useUIStore();
 
   return (
     <>
@@ -108,8 +108,8 @@ export default function AppNavigation() {
         </nav>
       </aside>
 
-      {/* Mobile Bottom Tab Bar — hidden on desktop */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-white/5 bg-surface-glass backdrop-blur-xl pb-[env(safe-area-inset-bottom)]">
+      {/* Mobile Bottom Tab Bar — hidden on desktop or when nav is hidden */}
+      <nav className={`md:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-white/5 bg-surface-glass backdrop-blur-xl pb-[env(safe-area-inset-bottom)] transition-transform duration-200 ${isNavHidden ? "translate-y-full" : "translate-y-0"}`}>
         <div className="flex items-center justify-around px-2 h-16">
           {navItems.map((item) => {
             const isActive =

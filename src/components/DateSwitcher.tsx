@@ -1,16 +1,31 @@
 "use client";
 
-import { useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import { ChevronLeft, ChevronRight, CalendarDays } from "lucide-react";
 import { useDateStore } from "@/store/useDateStore";
+import CalendarPicker from "@/components/CalendarPicker";
 
 /**
  * DateSwitcher — Horizontal scrollable date strip.
  *
  * Renders a sleek, slide-scrollable row of dates centered on the active
- * selectedDate. Includes left/right arrow navigation and a "Today" reset button.
+ * selectedDate. Includes left/right arrow navigation and a custom
+ * glassmorphic calendar picker triggered by the calendar icon.
+ *
+ * Constraints:
+ * - Users cannot navigate to or select future dates.
+ * - Future dates in the strip are visually greyed out and unclickable.
+ * - The calendar picker enforces max=today.
  */
+
+function getLocalTodayString(): string {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
 
 function formatDateLabel(dateStr: string): { day: string; weekday: string; isToday: boolean } {
   const date = new Date(dateStr + "T00:00:00");
@@ -50,6 +65,9 @@ export default function DateSwitcher() {
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const activeDateRef = useRef<HTMLButtonElement>(null);
+  const [calendarOpen, setCalendarOpen] = useState(false);
+
+  const todayStr = getLocalTodayString();
 
   // Scroll the active date into view when it changes
   useEffect(() => {
@@ -68,16 +86,23 @@ export default function DateSwitcher() {
   }, [decrementDate]);
 
   const handleNext = useCallback(() => {
+    // Block navigation to future dates
+    if (selectedDate >= todayStr) return;
     triggerHaptic();
     incrementDate();
-  }, [incrementDate]);
-
-  const handleToday = useCallback(() => {
-    triggerHaptic();
-    resetToToday();
-  }, [resetToToday]);
+  }, [incrementDate, selectedDate, todayStr]);
 
   const handleDateSelect = useCallback(
+    (date: string) => {
+      // Block selection of future dates
+      if (date > todayStr) return;
+      triggerHaptic();
+      setDate(date);
+    },
+    [setDate, todayStr]
+  );
+
+  const handleCalendarSelect = useCallback(
     (date: string) => {
       triggerHaptic();
       setDate(date);
@@ -86,94 +111,115 @@ export default function DateSwitcher() {
   );
 
   const dates = generateDateRange(selectedDate, 3);
-  const todayStr = new Date().toISOString().split("T")[0];
   const isOnToday = selectedDate === todayStr;
+  const isNextDisabled = selectedDate >= todayStr;
 
   return (
-    <div className="flex items-center gap-1 px-3 py-2 border-b border-white/5 bg-base/80 backdrop-blur-lg">
-      {/* Left Arrow */}
-      <button
-        onClick={handlePrev}
-        className="flex-shrink-0 p-1.5 rounded-lg hover:bg-white/5 transition-colors"
-        aria-label="Previous day"
-      >
-        <ChevronLeft className="h-4 w-4 text-gray-400" />
-      </button>
+    <>
+      <div className="flex items-center gap-1 px-3 py-2 border-b border-white/5 bg-base/80 backdrop-blur-lg">
+        {/* Left Arrow */}
+        <button
+          onClick={handlePrev}
+          className="flex-shrink-0 p-1.5 rounded-lg hover:bg-white/5 transition-colors"
+          aria-label="Previous day"
+        >
+          <ChevronLeft className="h-4 w-4 text-gray-400" />
+        </button>
 
-      {/* Scrollable Date Strip */}
-      <div
-        ref={scrollContainerRef}
-        className="flex-1 flex items-center gap-1 overflow-x-auto scrollbar-hide scroll-smooth"
-      >
-        {dates.map((dateStr) => {
-          const { day, weekday, isToday } = formatDateLabel(dateStr);
-          const isActive = dateStr === selectedDate;
+        {/* Scrollable Date Strip */}
+        <div
+          ref={scrollContainerRef}
+          className="flex-1 flex items-center gap-1 overflow-x-auto scrollbar-hide scroll-smooth"
+        >
+          {dates.map((dateStr) => {
+            const { day, weekday, isToday } = formatDateLabel(dateStr);
+            const isActive = dateStr === selectedDate;
+            const isFuture = dateStr > todayStr;
 
-          return (
-            <button
-              key={dateStr}
-              ref={isActive ? activeDateRef : undefined}
-              onClick={() => handleDateSelect(dateStr)}
-              className={`
-                flex-shrink-0 flex flex-col items-center justify-center
-                w-11 h-14 rounded-xl transition-all duration-200
-                ${
-                  isActive
-                    ? "bg-white/10 border border-white/20 shadow-sm"
-                    : "hover:bg-white/5"
-                }
-              `}
-            >
-              <span
-                className={`text-[10px] font-medium uppercase tracking-wider ${
-                  isActive ? "text-accent-purple" : "text-gray-500"
-                }`}
+            return (
+              <button
+                key={dateStr}
+                ref={isActive ? activeDateRef : undefined}
+                onClick={() => handleDateSelect(dateStr)}
+                disabled={isFuture}
+                className={`
+                  flex-shrink-0 flex flex-col items-center justify-center
+                  w-11 h-14 rounded-xl transition-all duration-200
+                  ${
+                    isFuture
+                      ? "opacity-30 cursor-not-allowed"
+                      : isActive
+                      ? "bg-white/10 border border-white/20 shadow-sm"
+                      : "hover:bg-white/5"
+                  }
+                `}
               >
-                {weekday}
-              </span>
-              <span
-                className={`text-sm font-semibold mt-0.5 ${
-                  isActive
-                    ? "text-white"
-                    : isToday
-                    ? "text-accent-cyan"
-                    : "text-gray-400"
-                }`}
-              >
-                {day}
-              </span>
-              {isToday && !isActive && (
-                <motion.div
-                  layoutId="today-dot"
-                  className="w-1 h-1 rounded-full bg-accent-cyan mt-0.5"
-                />
-              )}
-            </button>
-          );
-        })}
+                <span
+                  className={`text-[10px] font-medium uppercase tracking-wider ${
+                    isFuture
+                      ? "text-gray-700"
+                      : isActive
+                      ? "text-accent-purple"
+                      : "text-gray-500"
+                  }`}
+                >
+                  {weekday}
+                </span>
+                <span
+                  className={`text-sm font-semibold mt-0.5 ${
+                    isFuture
+                      ? "text-gray-700"
+                      : isActive
+                      ? "text-white"
+                      : isToday
+                      ? "text-accent-cyan"
+                      : "text-gray-400"
+                  }`}
+                >
+                  {day}
+                </span>
+                {isToday && !isActive && !isFuture && (
+                  <motion.div
+                    layoutId="today-dot"
+                    className="w-1 h-1 rounded-full bg-accent-cyan mt-0.5"
+                  />
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Right Arrow — disabled when on today or future */}
+        <button
+          onClick={handleNext}
+          disabled={isNextDisabled}
+          className={`
+            flex-shrink-0 p-1.5 rounded-lg transition-colors
+            ${isNextDisabled ? "opacity-30 cursor-not-allowed" : "hover:bg-white/5"}
+          `}
+          aria-label="Next day"
+        >
+          <ChevronRight className={`h-4 w-4 ${isNextDisabled ? "text-gray-700" : "text-gray-400"}`} />
+        </button>
+
+        {/* Calendar Icon — opens custom picker */}
+        <button
+          onClick={() => setCalendarOpen(true)}
+          className="flex-shrink-0 p-1.5 rounded-lg text-accent-cyan hover:bg-white/5 transition-colors"
+          aria-label="Open calendar picker"
+        >
+          <CalendarDays className="h-4 w-4" />
+        </button>
       </div>
 
-      {/* Right Arrow */}
-      <button
-        onClick={handleNext}
-        className="flex-shrink-0 p-1.5 rounded-lg hover:bg-white/5 transition-colors"
-        aria-label="Next day"
-      >
-        <ChevronRight className="h-4 w-4 text-gray-400" />
-      </button>
-
-      {/* Today Reset Button */}
-      <button
-        onClick={handleToday}
-        className={`
-          flex-shrink-0 p-1.5 rounded-lg transition-colors
-          ${isOnToday ? "text-gray-600" : "text-accent-cyan hover:bg-white/5"}
-        `}
-        disabled={isOnToday}
-        aria-label="Reset to today"
-      >
-        <CalendarDays className="h-4 w-4" />
-      </button>
-    </div>
+      {/* Custom Glassmorphic Calendar Picker */}
+      <CalendarPicker
+        isOpen={calendarOpen}
+        onClose={() => setCalendarOpen(false)}
+        selectedDate={selectedDate}
+        onDateSelect={handleCalendarSelect}
+        maxDate={todayStr}
+      />
+    </>
   );
 }

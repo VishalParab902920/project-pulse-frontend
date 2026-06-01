@@ -356,12 +356,61 @@ export default function OnboardingPage() {
 
   // Show loading spinner until client is mounted (prevents hydration mismatch).
   // IMPORTANT: This early-return MUST be placed AFTER all hook declarations above.
-  if (!isMounted) {
+  if (!isMounted || (!prefilled && accessToken)) {
     return (
-      <div className="min-h-[100dvh] flex items-center justify-center bg-[#050505]">
-        <div className="flex flex-col items-center gap-3">
-          <div className="h-8 w-8 rounded-full ai-glow animate-pulse" />
-          <span className="text-xs text-gray-500 tracking-wide">Loading...</span>
+      <div className="min-h-[100dvh] flex items-center justify-center px-4 py-8 bg-[#050505]">
+        <div className="w-full max-w-lg">
+          {/* Shimmer Skeleton */}
+          <div className="text-center mb-8">
+            <div className="inline-flex h-12 w-12 rounded-2xl bg-white/5 animate-pulse mb-4" />
+            <div className="h-6 w-48 rounded-lg bg-white/5 animate-pulse mx-auto mb-2" />
+            <div className="h-4 w-64 rounded-lg bg-white/5 animate-pulse mx-auto" />
+          </div>
+          <div className="glass-card p-6 space-y-6">
+            {/* Gender skeleton */}
+            <div>
+              <div className="h-3 w-16 rounded bg-white/5 animate-pulse mb-2" />
+              <div className="grid grid-cols-2 gap-3">
+                <div className="h-12 rounded-xl bg-white/5 animate-pulse" />
+                <div className="h-12 rounded-xl bg-white/5 animate-pulse" />
+              </div>
+            </div>
+            {/* DOB skeleton */}
+            <div>
+              <div className="h-3 w-24 rounded bg-white/5 animate-pulse mb-1.5" />
+              <div className="h-12 rounded-xl bg-white/5 animate-pulse" />
+            </div>
+            {/* Height skeleton */}
+            <div>
+              <div className="flex justify-between mb-1.5">
+                <div className="h-3 w-12 rounded bg-white/5 animate-pulse" />
+                <div className="h-3 w-16 rounded bg-white/5 animate-pulse" />
+              </div>
+              <div className="h-2 rounded-full bg-white/5 animate-pulse" />
+            </div>
+            {/* Weight skeleton */}
+            <div>
+              <div className="flex justify-between mb-1.5">
+                <div className="h-3 w-12 rounded bg-white/5 animate-pulse" />
+                <div className="h-3 w-16 rounded bg-white/5 animate-pulse" />
+              </div>
+              <div className="h-2 rounded-full bg-white/5 animate-pulse" />
+            </div>
+            {/* Activity skeleton */}
+            <div>
+              <div className="h-3 w-24 rounded bg-white/5 animate-pulse mb-1.5" />
+              <div className="h-12 rounded-xl bg-white/5 animate-pulse" />
+            </div>
+            {/* Goal skeleton */}
+            <div>
+              <div className="h-3 w-20 rounded bg-white/5 animate-pulse mb-2" />
+              <div className="grid grid-cols-3 gap-2">
+                <div className="h-10 rounded-xl bg-white/5 animate-pulse" />
+                <div className="h-10 rounded-xl bg-white/5 animate-pulse" />
+                <div className="h-10 rounded-xl bg-white/5 animate-pulse" />
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     );
