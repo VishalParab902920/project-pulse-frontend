@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Loader2, UserPlus, Eye, EyeOff } from "lucide-react";
+import { Loader2, UserPlus, Eye, EyeOff, Mail } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useUserStore } from "@/store/useUserStore";
 
@@ -13,6 +13,7 @@ import { useUserStore } from "@/store/useUserStore";
  *
  * Creates a new user account via Supabase, sets the access token cookie,
  * updates Zustand auth state, and redirects to onboarding.
+ * Shows a "Check Your Inbox" splash when email verification is required.
  */
 
 export default function RegisterPage() {
@@ -25,6 +26,7 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isVerificationSent, setIsVerificationSent] = useState(false);
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,8 +47,11 @@ export default function RegisterPage() {
 
     try {
       const { data, error: authError } = await supabase.auth.signUp({
-        email: email.trim(),
-        password,
+        email: email,
+        password: password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/app/dashboard`
+        }
       });
 
       if (authError) {
@@ -55,9 +60,8 @@ export default function RegisterPage() {
       }
 
       if (!data.session) {
-        // Email confirmation required
-        setError(null);
-        router.push("/login?message=check-email");
+        // Email confirmation required — show verification splash
+        setIsVerificationSent(true);
         return;
       }
 
@@ -83,6 +87,55 @@ export default function RegisterPage() {
       setIsLoading(false);
     }
   };
+
+  // --- Verification Sent Splash ---
+  if (isVerificationSent) {
+    return (
+      <div className="min-h-[100dvh] flex items-center justify-center px-4">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.4, ease: "easeOut" }}
+          className="w-full max-w-sm"
+        >
+          <div className="glass-card p-8 text-center">
+            {/* Pulsing Mail Icon */}
+            <div className="flex justify-center mb-6">
+              <div className="relative">
+                <motion.div
+                  animate={{ scale: [1, 1.1, 1] }}
+                  transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                  className="h-16 w-16 rounded-2xl bg-gradient-to-br from-accent-indigo/20 via-accent-purple/20 to-accent-cyan/20 border border-accent-purple/30 flex items-center justify-center shadow-[0_0_30px_rgba(168,85,247,0.3)]"
+                >
+                  <Mail className="h-7 w-7 text-accent-purple" />
+                </motion.div>
+                {/* Glow ring */}
+                <div className="absolute inset-0 rounded-2xl shadow-[0_0_40px_rgba(168,85,247,0.2)] pointer-events-none" />
+              </div>
+            </div>
+
+            {/* Header */}
+            <h1 className="text-xl font-bold text-white mb-2">Check your inbox</h1>
+
+            {/* Message */}
+            <p className="text-sm text-gray-400 leading-relaxed mb-6">
+              A verification link has been sent to{" "}
+              <span className="font-medium text-white">{email}</span>.
+              Please click the link inside the email to confirm your account and begin your Kayan journey.
+            </p>
+
+            {/* Back to Sign In */}
+            <Link
+              href="/login"
+              className="inline-flex items-center justify-center w-full rounded-xl border border-white/10 bg-white/[0.03] py-3 text-sm font-medium text-gray-300 hover:text-white hover:border-white/20 transition-colors"
+            >
+              Back to Sign In
+            </Link>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-[100dvh] flex items-center justify-center px-4">

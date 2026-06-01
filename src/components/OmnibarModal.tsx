@@ -18,7 +18,6 @@ import { useCacheStore } from "@/store/useCacheStore";
 import { getAccessToken } from "@/lib/auth";
 import { apiFetch } from "@/lib/api";
 import { useUIStore } from "@/store/useUIStore";
-import { useSWR } from "@/hooks/useSWR";
 import AudioWaveform from "@/components/AudioWaveform";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
@@ -120,13 +119,38 @@ export default function OmnibarModal({ isOpen, onClose }: OmnibarModalProps) {
   // Camera/photo capture state
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // SWR History Hydration — fetch chat history on modal mount
-  const { data: historyData, isLoading: historyLoading } = useSWR<HistoryResponse>(
-    "/api/v2/ai/history"
-  );
-
-  // Hydrate local messages state from history data (once loaded, only if messages are empty)
+  // History Hydration — fetch chat history only when modal opens
+  const [historyData, setHistoryData] = useState<HistoryResponse | null>(null);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const historyHydratedRef = useRef(false);
+
+  useEffect(() => {
+    if (!isOpen) {
+      // Reset hydration flag when modal closes so it re-fetches next open
+      historyHydratedRef.current = false;
+      return;
+    }
+    if (historyHydratedRef.current) return;
+
+    let cancelled = false;
+    setHistoryLoading(true);
+
+    apiFetch("/api/v2/ai/history")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!cancelled && data) {
+          setHistoryData(data);
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setHistoryLoading(false);
+      });
+
+    return () => { cancelled = true; };
+  }, [isOpen]);
+
+  // Hydrate local messages state from history data (once loaded)
   useEffect(() => {
     if (!historyData || historyHydratedRef.current) return;
     if (historyData.messages && historyData.messages.length > 0) {
@@ -196,10 +220,6 @@ export default function OmnibarModal({ isOpen, onClose }: OmnibarModalProps) {
       mediaStream.getTracks().forEach((track) => track.stop());
       setMediaStream(null);
       setIsRecording(false);
-    }
-    // Reset hydration flag when modal closes so history re-fetches on next open
-    if (!isOpen) {
-      historyHydratedRef.current = false;
     }
   }, [isOpen, mediaStream]);
 

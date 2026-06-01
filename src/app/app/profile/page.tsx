@@ -3,10 +3,12 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { User, Key, Loader2, Check, Shield, Pencil, Lock, BarChart3, ChevronDown, Settings, Trash2 } from "lucide-react";
+import { User, Key, Loader2, Check, Shield, Pencil, Lock, BarChart3, ChevronDown, Settings, Trash2, LogOut } from "lucide-react";
 import { useUserStore } from "@/store/useUserStore";
+import { useCacheStore } from "@/store/useCacheStore";
 import { getAccessToken } from "@/lib/auth";
 import { apiFetch } from "@/lib/api";
+import { supabase } from "@/lib/supabase";
 
 interface BiometricData {
   gender: string | null;
@@ -48,6 +50,9 @@ export default function ProfilePage() {
 
   // Advanced accordion
   const [advancedOpen, setAdvancedOpen] = useState(false);
+
+  // Sign out state
+  const [isSigningOut, setIsSigningOut] = useState(false);
 
   useEffect(() => {
     if (!accessToken) return;
@@ -103,6 +108,37 @@ export default function ProfilePage() {
       setByokClearing(false);
     }
   }, [accessToken]);
+
+  const handleSignOut = useCallback(async () => {
+    setIsSigningOut(true);
+    try {
+      // 1. Sign out from Supabase
+      await supabase.auth.signOut();
+
+      // 2. Clear Zustand auth store
+      useUserStore.getState().clearAuth();
+
+      // 3. Clear SWR cache store
+      useCacheStore.getState().clearCache();
+
+      // 4. Wipe browser storage
+      localStorage.clear();
+      sessionStorage.clear();
+
+      // 5. Clear localforage IndexedDB (dynamic import to avoid SSR issues)
+      try {
+        const localforage = (await import("localforage")).default;
+        await localforage.clear();
+      } catch {}
+
+      // 6. Hard redirect to login — wipes JS memory
+      window.location.href = "/login";
+    } catch (err) {
+      console.error("[PROFILE] Sign out failed:", err);
+      // Force redirect even on error
+      window.location.href = "/login";
+    }
+  }, []);
 
   if (isLoading) {
     return (
@@ -302,6 +338,26 @@ export default function ProfilePage() {
             </div>
           </div>
         </div>
+      </motion.div>
+
+      {/* Sign Out Button */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.4 }}
+      >
+        <button
+          onClick={handleSignOut}
+          disabled={isSigningOut}
+          className="w-full flex items-center justify-center gap-2 rounded-xl bg-status-rose/5 border border-status-rose/20 py-3.5 text-sm font-medium text-status-rose hover:bg-status-rose/10 transition-colors disabled:opacity-50 shadow-[0_0_15px_rgba(244,63,94,0.1)]"
+        >
+          {isSigningOut ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <LogOut className="h-4 w-4" />
+          )}
+          {isSigningOut ? "Signing out..." : "Sign Out"}
+        </button>
       </motion.div>
     </div>
   );

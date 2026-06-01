@@ -39,9 +39,6 @@ export function useSWR<T = unknown>(
   dateDependency?: string,
   pollIntervalMs?: number
 ): SWRResult<T> {
-  const { setCache } = useCacheStore();
-  const storeToken = useUserStore((s) => s.accessToken);
-
   const cacheKey = dateDependency ? `${url}_${dateDependency}` : url;
 
   // Read initial cached data synchronously
@@ -78,7 +75,8 @@ export function useSWR<T = unknown>(
 
   const fetchData = useCallback(
     async (isBackground = false) => {
-      const token = storeToken || getAccessToken();
+      // Read token fresh each call — not a dependency to avoid re-render loops
+      const token = useUserStore.getState().accessToken || getAccessToken();
       if (!token) return;
 
       if (!isBackground) {
@@ -97,7 +95,7 @@ export function useSWR<T = unknown>(
         if (res.ok) {
           const freshData = (await res.json()) as T;
           setData(freshData);
-          setCache(cacheKey, freshData);
+          useCacheStore.getState().setCache(cacheKey, freshData);
           setIsLoading(false);
         } else if (res.status !== 401) {
           // 401 is handled by apiFetch (refresh + redirect) — only surface other errors
@@ -114,7 +112,7 @@ export function useSWR<T = unknown>(
         }
       }
     },
-    [storeToken, buildEndpoint, cacheKey, setCache]
+    [buildEndpoint, cacheKey]
   );
 
   // Background revalidation on key change
