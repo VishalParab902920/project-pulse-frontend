@@ -83,6 +83,7 @@ export default function FoodSearchModal({
       setSearchQuery("");
       setSearchResults([]);
       setSelectedFood(null);
+      setIsOfflineSearch(false);
       setBarcodeValue("");
       setIsScannerActive(false);
       setBarcodeNotFound(false);

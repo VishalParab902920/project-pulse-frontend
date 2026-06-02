@@ -2,6 +2,7 @@
 
 import { create } from "zustand";
 import localforage from "localforage";
+import { useCacheStore } from "@/store/useCacheStore";
 import { calculateBaseQty, calculateMacros } from "@/lib/conversions";
 import type {
   Food,
@@ -134,9 +135,17 @@ async function atomicWriteQueue(
 
 /**
  * Notify diary page to trigger SWR revalidation after successful sync.
+ * Also fires pulse:cache-update so useSWR hook re-reads from useCacheStore
+ * (where the atomic handover injected the server record).
  */
 function notifyRevalidate(targetDate: string): void {
   if (typeof window !== "undefined") {
+    // Notify useSWR to re-read the cache store (immediate visual update)
+    const cacheKey = `/api/v2/nutrition/diary_${targetDate}`;
+    window.dispatchEvent(
+      new CustomEvent("pulse:cache-update", { detail: { cacheKey } })
+    );
+    // Notify diary page to trigger background network revalidation
     window.dispatchEvent(
       new CustomEvent("pulse:sync-complete", { detail: { targetDate } })
     );
@@ -282,7 +291,6 @@ export const useSyncStore = create<SyncState>((set, get) => ({
       queue.sort((a, b) => a.timestamp - b.timestamp);
 
       let processedCount = 0;
-      const reconciledDates = new Set<string>();
 
       for (const item of [...queue]) {
         if (!navigator.onLine) {
@@ -301,30 +309,76 @@ export const useSyncStore = create<SyncState>((set, get) => ({
           });
 
           if (res.status >= 200 && res.status < 300) {
-            // 200 OK — remove from queue
+            // === ATOMIC CACHE HANDOVER ===
+            // 1. Parse the server-persisted log (with DB-generated ID and finalized macros)
+            let serverLog: NutritionLog | null = null;
+            try {
+              serverLog = (await res.json()) as NutritionLog;
+            } catch {
+              // Non-JSON response — proceed without handover
+            }
+
+            // 2. Inject server record into the SWR cache BEFORE removing from queue.
+            //    This ensures 0ms visual continuity — the card transitions from
+            //    pending (orange pulse) to confirmed (steady state) without disappearing.
+            if (serverLog) {
+              const itemDate = item.payload.logged_at.split("T")[0];
+              const cacheKey = `/api/v2/nutrition/diary_${itemDate}`;
+
+              const currentLogs = useCacheStore.getState().getCache(cacheKey) as NutritionLog[] | null;
+              const logs = currentLogs || [];
+
+              // Filter out any duplicate (client UUID or server ID) to prevent key collisions
+              const filteredLogs = logs.filter(
+                (log) => log.id !== item.id && log.id !== serverLog!.id
+              );
+
+              // Inject the authoritative server record
+              useCacheStore.getState().setCache(cacheKey, [...filteredLogs, serverLog]);
+
+              console.log(
+                `[SYNC] ✓ Atomic handover: ${item.id} → ${serverLog.id}`
+              );
+            }
+
+            // 3. Now safe to delete from the local queue —
+            //    SWR cache has the item, so the card remains on screen
             queue = queue.filter((q) => q.id !== item.id);
             await atomicWriteQueue(queue, get, set);
             processedCount++;
 
-            // Track which dates need SWR revalidation
-            const logDate = item.payload.logged_at.split("T")[0];
-            reconciledDates.add(logDate);
+            // 4. Update in-memory pendingLogs immediately so render-phase merge
+            //    stops showing the pending version this frame
+            set({ pendingLogs: queue });
+
+            // 5. Trigger quiet background revalidation for absolute alignment with DB
+            if (serverLog) {
+              const itemDate = item.payload.logged_at.split("T")[0];
+              notifyRevalidate(itemDate);
+            }
 
             console.log(`[SYNC] ✓ Flushed: ${item.id} (${res.status})`);
           } else if (res.status === 409) {
             // Conflict — idempotent duplicate, safe to remove
             queue = queue.filter((q) => q.id !== item.id);
             await atomicWriteQueue(queue, get, set);
+            set({ pendingLogs: queue });
             processedCount++;
+
+            // Still trigger revalidation to pull the existing record into cache
+            const itemDate = item.payload.logged_at.split("T")[0];
+            notifyRevalidate(itemDate);
+
             console.log(`[SYNC] ✓ Duplicate (409): ${item.id}`);
           } else if (res.status >= 400 && res.status < 500) {
             // 4xx client error — drop (won't succeed on retry)
             queue = queue.filter((q) => q.id !== item.id);
             await atomicWriteQueue(queue, get, set);
+            set({ pendingLogs: queue });
             processedCount++;
             console.warn(`[SYNC] ✗ Dropped (${res.status}): ${item.id}`);
           } else {
-            // 5xx server error — keep in queue, break
+            // 5xx server error — keep in queue, break to retry later
             console.warn(`[SYNC] Server error ${res.status} — pausing flush`);
             break;
           }
@@ -334,15 +388,10 @@ export const useSyncStore = create<SyncState>((set, get) => ({
         }
       }
 
-      // Update in-memory state from IndexedDB
+      // Final state sync from IndexedDB (handles edge cases where set() above missed)
       const remaining: PendingNutritionLog[] =
         (await syncDb.getItem(QUEUE_STORE_KEY)) || [];
       set({ pendingLogs: remaining });
-
-      // Trigger SWR revalidation for all reconciled dates
-      for (const date of reconciledDates) {
-        notifyRevalidate(date);
-      }
 
       console.log(
         `[SYNC] Flush complete — processed: ${processedCount}, remaining: ${remaining.length}`
