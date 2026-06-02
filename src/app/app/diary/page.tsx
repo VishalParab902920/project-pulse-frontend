@@ -24,7 +24,12 @@ import { useSWR } from "@/hooks/useSWR";
 import FoodSearchModal from "@/components/FoodSearchModal";
 import NutritionHubModal from "@/components/NutritionHubModal";
 import CustomFoodCreator from "@/components/nutrition/CustomFoodCreator";
+import DailyTotals from "@/components/nutrition/DailyTotals";
 import type { Food } from "@/lib/types/nutrition";
+
+// =============================================================
+// Types
+// =============================================================
 
 interface NutritionLog {
   id: string;
@@ -61,112 +66,12 @@ interface MacroTotals {
   fat: number;
 }
 
-function calculateLogMacros(log: NutritionLog): MacroTotals {
-  return {
-    calories: Math.round(log.calculated_calories ?? 0),
-    protein: Math.round(log.calculated_protein ?? 0),
-    carbs: Math.round(log.calculated_carbs ?? 0),
-    fat: Math.round(log.calculated_fat ?? 0),
-  };
-}
-
-function calculateDayTotals(diary: DiaryData): MacroTotals {
-  const allLogs = [
-    ...diary.breakfast,
-    ...diary.lunch,
-    ...diary.dinner,
-    ...diary.snack,
-  ];
-  return allLogs.reduce(
-    (acc, log) => {
-      const macros = calculateLogMacros(log);
-      return {
-        calories: acc.calories + macros.calories,
-        protein: acc.protein + macros.protein,
-        carbs: acc.carbs + macros.carbs,
-        fat: acc.fat + macros.fat,
-      };
-    },
-    { calories: 0, protein: 0, carbs: 0, fat: 0 }
-  );
-}
-
 // =============================================================
-// Net Calories Header Widget
+// Net Calories Header — Extracted to DailyTotals component
 // =============================================================
 
-function NetCaloriesHeader({
-  eaten,
-  target,
-  burned,
-}: {
-  eaten: MacroTotals;
-  target: { calories: number; protein: number; carbs: number; fat: number };
-  burned: number;
-}) {
-  const remaining = target.calories - eaten.calories + burned;
-  const progress = Math.min((eaten.calories / Math.max(target.calories, 1)) * 100, 100);
-
-  return (
-    <div className="glass-card p-4 mb-3">
-      <div className="flex items-center gap-4">
-        <div className="relative flex-shrink-0 w-20 h-20">
-          <svg className="w-20 h-20 -rotate-90" viewBox="0 0 80 80">
-            <circle cx="40" cy="40" r="34" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="6" />
-            <circle cx="40" cy="40" r="34" fill="none" stroke="url(#diaryCalGrad)" strokeWidth="6" strokeLinecap="round" strokeDasharray={`${progress * 2.136} ${213.6 - progress * 2.136}`} />
-            <defs>
-              <linearGradient id="diaryCalGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="#6366F1" />
-                <stop offset="100%" stopColor="#A855F7" />
-              </linearGradient>
-            </defs>
-          </svg>
-          <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className="text-lg font-bold text-white">{remaining}</span>
-            <span className="text-[9px] text-gray-500">left</span>
-          </div>
-        </div>
-        <div className="flex-1 space-y-1.5">
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-gray-500">Target</span>
-            <span className="text-white font-medium">{target.calories}</span>
-          </div>
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-gray-500">Eaten</span>
-            <span className="text-accent-purple font-medium">{eaten.calories}</span>
-          </div>
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-gray-500">Burned</span>
-            <span className="text-accent-cyan font-medium">+{burned}</span>
-          </div>
-        </div>
-      </div>
-      <div className="grid grid-cols-3 gap-3 mt-4">
-        <MacroMiniBar label="Protein" current={eaten.protein} target={target.protein} color="bg-accent-cyan" />
-        <MacroMiniBar label="Carbs" current={eaten.carbs} target={target.carbs} color="bg-accent-purple" />
-        <MacroMiniBar label="Fat" current={eaten.fat} target={target.fat} color="bg-accent-indigo" />
-      </div>
-    </div>
-  );
-}
-
-function MacroMiniBar({ label, current, target, color }: { label: string; current: number; target: number; color: string }) {
-  const pct = Math.min((current / Math.max(target, 1)) * 100, 100);
-  return (
-    <div>
-      <div className="flex items-center justify-between mb-1">
-        <span className="text-[10px] text-gray-500">{label}</span>
-        <span className="text-[10px] text-white font-medium">{current}/{target}g</span>
-      </div>
-      <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
-        <motion.div className={`h-full rounded-full ${color}`} initial={{ width: 0 }} animate={{ width: `${pct}%` }} transition={{ duration: 0.4, ease: "easeOut" }} />
-      </div>
-    </div>
-  );
-}
-
 // =============================================================
-// My Nutrition Library — Quick Actions Panel
+// Quick Actions Panel — Pure Presentational
 // =============================================================
 
 function NutritionLibraryPanel({
@@ -218,7 +123,7 @@ function NutritionLibraryPanel({
 }
 
 // =============================================================
-// Water Tracker Widget
+// Water Tracker — Pure Presentational
 // =============================================================
 
 function WaterTracker({ waterMl, onAdd }: { waterMl: number; onAdd: () => void }) {
@@ -251,7 +156,7 @@ function WaterTracker({ waterMl, onAdd }: { waterMl: number; onAdd: () => void }
 }
 
 // =============================================================
-// Meal Container with Pending Card Styling
+// Meal Container — Pure Presentational with Pending Card Styling
 // =============================================================
 
 const MEAL_ICONS = { breakfast: Coffee, lunch: Sun, dinner: Moon, snack: Cookie };
@@ -260,16 +165,17 @@ const MEAL_LABELS = { breakfast: "Breakfast", lunch: "Lunch", dinner: "Dinner", 
 function MealContainer({
   mealType,
   logs,
+  mealCalories,
   onDelete,
   onAddFood,
 }: {
   mealType: keyof typeof MEAL_LABELS;
   logs: NutritionLog[];
+  mealCalories: number;
   onDelete: (logId: string) => void;
   onAddFood: (mealType: string) => void;
 }) {
   const Icon = MEAL_ICONS[mealType];
-  const totalCals = logs.reduce((sum, log) => sum + calculateLogMacros(log).calories, 0);
 
   return (
     <div className="glass-card p-4 mb-3">
@@ -277,7 +183,7 @@ function MealContainer({
         <div className="flex items-center gap-2">
           <Icon className="h-4 w-4 text-gray-400" />
           <span className="text-sm font-medium text-white">{MEAL_LABELS[mealType]}</span>
-          {totalCals > 0 && <span className="text-xs text-gray-500">{totalCals} kcal</span>}
+          {mealCalories > 0 && <span className="text-xs text-gray-500">{mealCalories} kcal</span>}
         </div>
         <button
           onClick={() => onAddFood(mealType)}
@@ -291,8 +197,11 @@ function MealContainer({
       <div className="space-y-2 transform-gpu">
         <AnimatePresence mode="popLayout">
           {logs.map((log) => {
-            const macros = calculateLogMacros(log);
             const isPending = log.isPendingSync === true;
+            const cal = Math.round(log.calculated_calories ?? 0);
+            const pro = Math.round(log.calculated_protein ?? 0);
+            const carb = Math.round(log.calculated_carbs ?? 0);
+            const fat = Math.round(log.calculated_fat ?? 0);
 
             return (
               <motion.div
@@ -313,7 +222,7 @@ function MealContainer({
                     {log.food?.name || "Unknown Food"}
                   </p>
                   <p className="text-[10px] text-gray-500">
-                    {log.quantity}{log.measure?.measure_name || "g"} • {macros.calories} kcal • P:{macros.protein}g C:{macros.carbs}g F:{macros.fat}g
+                    {log.quantity}{log.measure?.measure_name || "g"} • {cal} kcal • P:{pro}g C:{carb}g F:{fat}g
                   </p>
                 </div>
                 {isPending ? (
@@ -344,40 +253,71 @@ function MealContainer({
 }
 
 // =============================================================
-// Main Diary Page — Render-Phase Merging
+// Skeleton Shimmer Loader
+// =============================================================
+
+function DiarySkeletonLoader() {
+  return (
+    <div className="p-4 pb-24 space-y-3 animate-pulse">
+      {/* Header skeleton */}
+      <div className="glass-card p-4 mb-3">
+        <div className="flex items-center gap-4">
+          <div className="w-20 h-20 rounded-full bg-white/5" />
+          <div className="flex-1 space-y-2">
+            <div className="h-3 w-24 rounded bg-white/5" />
+            <div className="h-3 w-20 rounded bg-white/5" />
+            <div className="h-3 w-16 rounded bg-white/5" />
+          </div>
+        </div>
+      </div>
+      {/* Meal skeletons */}
+      {[1, 2, 3, 4].map((i) => (
+        <div key={i} className="glass-card p-4">
+          <div className="h-4 w-24 rounded bg-white/5 mb-3" />
+          <div className="h-10 w-full rounded-xl bg-white/[0.02]" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// =============================================================
+// Main Diary Page — Centralized State & Client Calculations
 // =============================================================
 
 export default function DiaryPage() {
   const { selectedDate } = useDateStore();
   const storeToken = useUserStore((s) => s.accessToken);
-  const accessToken = storeToken || getAccessToken();
+  const token = storeToken || getAccessToken();
 
-  // Subscribe to pending logs from sync queue
+  // Subscribe to pending logs from sync queue (Render-Phase Merging source)
   const pendingLogs = useSyncStore((state) => state.pendingLogs);
 
-  // SWR-powered data fetching
+  // =========================================================
+  // CENTRALIZED SWR FETCHING — Single page-level query
+  // useSWR reads from useCacheStore for instant fallback on date switch
+  // =========================================================
   const { data: rawDiaryData, isLoading: diaryLoading, mutate: mutateDiary } = useSWR<NutritionLog[]>(
     "/api/v2/nutrition/diary",
     selectedDate,
     60000
   );
-  const { data: summaryData } = useSWR<{ total_water_ml: number }>(
-    `/api/v2/nutrition/summary/${selectedDate}`,
-    undefined,
-    60000
-  );
-  const { data: bioData } = useSWR<{ target_calories: number; target_protein_g: number; target_carbs_g: number; target_fat_g: number }>(
-    "/api/v2/profile/biometrics"
-  );
+
+  // Biometrics (targets) — static, rarely changes
+  const { data: bioData } = useSWR<{
+    target_calories: number;
+    target_protein_g: number;
+    target_carbs_g: number;
+    target_fat_g: number;
+  }>("/api/v2/profile/biometrics");
 
   // =========================================================
   // RENDER-PHASE MERGING
-  // Merge SWR server data + local pending queue items
+  // Combine SWR server data + local pending queue items
   // =========================================================
   const mergedLogs: NutritionLog[] = useMemo(() => {
     const dbLogs: NutritionLog[] = rawDiaryData || [];
 
-    // Filter pending queue for items logged on the current selected date
     const targetDatePending: NutritionLog[] = pendingLogs
       .filter((item) => {
         const itemDate = item.payload.logged_at.split("T")[0];
@@ -401,14 +341,30 @@ export default function DiaryPage() {
         measure: item.measure as NutritionLog["measure"],
       }));
 
-    // Prevent duplicates: if a DB log shares the same ID as a pending item,
-    // prioritize the DB log (it means the sync already completed)
+    // Prevent duplicates: DB log with same ID takes priority
     const pendingFiltered = targetDatePending.filter(
       (pending) => !dbLogs.some((dbLog) => dbLog.id === pending.id)
     );
 
     return [...dbLogs, ...pendingFiltered];
   }, [rawDiaryData, pendingLogs, selectedDate]);
+
+  // =========================================================
+  // CLIENT-SIDE MACRO SUMMARY — computed from mergedLogs
+  // No separate /summary endpoint needed
+  // =========================================================
+  const dailyTotals: MacroTotals = useMemo(() => {
+    return mergedLogs.reduce(
+      (acc, log) => {
+        acc.calories += Math.round(Number(log.calculated_calories) || 0);
+        acc.protein += Math.round(Number(log.calculated_protein) || 0);
+        acc.carbs += Math.round(Number(log.calculated_carbs) || 0);
+        acc.fat += Math.round(Number(log.calculated_fat) || 0);
+        return acc;
+      },
+      { calories: 0, protein: 0, carbs: 0, fat: 0 }
+    );
+  }, [mergedLogs]);
 
   // Group merged logs into meal categories
   const diary: DiaryData = useMemo(() => {
@@ -423,6 +379,25 @@ export default function DiaryPage() {
     );
   }, [mergedLogs]);
 
+  // Per-meal calorie totals (computed once, passed as props)
+  const mealCalories = useMemo(() => ({
+    breakfast: diary.breakfast.reduce((s, l) => s + Math.round(Number(l.calculated_calories) || 0), 0),
+    lunch: diary.lunch.reduce((s, l) => s + Math.round(Number(l.calculated_calories) || 0), 0),
+    dinner: diary.dinner.reduce((s, l) => s + Math.round(Number(l.calculated_calories) || 0), 0),
+    snack: diary.snack.reduce((s, l) => s + Math.round(Number(l.calculated_calories) || 0), 0),
+  }), [diary]);
+
+  // Targets from biometrics
+  const targets: MacroTotals = useMemo(() => ({
+    calories: bioData?.target_calories || 2200,
+    protein: bioData?.target_protein_g || 165,
+    carbs: bioData?.target_carbs_g || 220,
+    fat: bioData?.target_fat_g || 73,
+  }), [bioData]);
+
+  // =========================================================
+  // LOCAL UI STATE
+  // =========================================================
   const [localDiary, setLocalDiary] = useState<DiaryData | null>(null);
   const [waterMl, setWaterMl] = useState(0);
   const [searchModalOpen, setSearchModalOpen] = useState(false);
@@ -431,12 +406,10 @@ export default function DiaryPage() {
   const [activeMealType, setActiveMealType] = useState<string>("snack");
   const [customFoodCreatorOpen, setCustomFoodCreatorOpen] = useState(false);
 
-  // Sync water from summary
-  useEffect(() => {
-    if (summaryData) setWaterMl(summaryData.total_water_ml || 0);
-  }, [summaryData]);
+  // Reset local overrides when SWR data changes
+  useEffect(() => { setLocalDiary(null); }, [rawDiaryData]);
 
-  // Listen for sync-complete events to trigger SWR revalidation
+  // Listen for sync-complete events to trigger background SWR revalidation
   useEffect(() => {
     if (typeof window === "undefined") return;
 
@@ -453,19 +426,12 @@ export default function DiaryPage() {
     };
   }, [selectedDate, mutateDiary]);
 
-  const targets = {
-    calories: bioData?.target_calories || 2200,
-    protein: bioData?.target_protein_g || 165,
-    carbs: bioData?.target_carbs_g || 220,
-    fat: bioData?.target_fat_g || 73,
-  };
-
   const activeDiary = localDiary || diary;
 
-  // Reset local overrides when SWR data changes
-  useEffect(() => { setLocalDiary(null); }, [rawDiaryData]);
+  // =========================================================
+  // EVENT HANDLERS
+  // =========================================================
 
-  // Delete a nutrition log (optimistic)
   const handleDelete = useCallback(
     async (logId: string) => {
       const prevDiary = activeDiary;
@@ -485,7 +451,6 @@ export default function DiaryPage() {
     [activeDiary, mutateDiary]
   );
 
-  // Water tracker
   const handleAddWater = useCallback(() => {
     if (typeof navigator !== "undefined" && "vibrate" in navigator) navigator.vibrate(10);
     const prevWater = waterMl;
@@ -505,10 +470,8 @@ export default function DiaryPage() {
   const handleFoodLogged = useCallback(() => {
     setSearchModalOpen(false);
     setNutritionHubOpen(false);
-    // No need to mutate — Render-Phase Merging picks up the pending log automatically
   }, []);
 
-  // Quick Actions Panel handlers
   const handleOpenSearchFoods = useCallback(() => {
     setActiveMealType("snack");
     setSearchModalOpen(true);
@@ -523,33 +486,37 @@ export default function DiaryPage() {
     setCustomFoodCreatorOpen(true);
   }, []);
 
-  const dayTotals = calculateDayTotals(activeDiary);
+  // =========================================================
+  // RENDER
+  // =========================================================
 
+  // Show skeleton ONLY for completely un-cached dates with no pending logs
   if (diaryLoading && !rawDiaryData && pendingLogs.length === 0) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-5 w-5 text-accent-purple animate-spin" />
-      </div>
-    );
+    return <DiarySkeletonLoader />;
   }
 
   return (
     <div className="p-4 pb-24 transform-gpu">
-      <NetCaloriesHeader eaten={dayTotals} target={targets} burned={0} />
+      {/* Net Calories Header — V2.5 DailyTotals with overflow warnings */}
+      <DailyTotals eaten={dailyTotals} target={targets} burned={0} />
 
+      {/* Quick Actions */}
       <NutritionLibraryPanel
         onSearchFoods={handleOpenSearchFoods}
         onMyRecipes={handleOpenRecipes}
         onCreateCustom={handleOpenCustomFood}
       />
 
+      {/* Water Tracker */}
       <WaterTracker waterMl={waterMl} onAdd={handleAddWater} />
 
-      <MealContainer mealType="breakfast" logs={activeDiary.breakfast} onDelete={handleDelete} onAddFood={handleAddFood} />
-      <MealContainer mealType="lunch" logs={activeDiary.lunch} onDelete={handleDelete} onAddFood={handleAddFood} />
-      <MealContainer mealType="dinner" logs={activeDiary.dinner} onDelete={handleDelete} onAddFood={handleAddFood} />
-      <MealContainer mealType="snack" logs={activeDiary.snack} onDelete={handleDelete} onAddFood={handleAddFood} />
+      {/* Meal Containers — receive logs + pre-computed calories as props */}
+      <MealContainer mealType="breakfast" logs={activeDiary.breakfast} mealCalories={mealCalories.breakfast} onDelete={handleDelete} onAddFood={handleAddFood} />
+      <MealContainer mealType="lunch" logs={activeDiary.lunch} mealCalories={mealCalories.lunch} onDelete={handleDelete} onAddFood={handleAddFood} />
+      <MealContainer mealType="dinner" logs={activeDiary.dinner} mealCalories={mealCalories.dinner} onDelete={handleDelete} onAddFood={handleAddFood} />
+      <MealContainer mealType="snack" logs={activeDiary.snack} mealCalories={mealCalories.snack} onDelete={handleDelete} onAddFood={handleAddFood} />
 
+      {/* Modals */}
       <FoodSearchModal
         isOpen={searchModalOpen}
         onClose={() => setSearchModalOpen(false)}
@@ -568,7 +535,7 @@ export default function DiaryPage() {
       <CustomFoodCreator
         isOpen={customFoodCreatorOpen}
         onClose={() => setCustomFoodCreatorOpen(false)}
-        onFoodCreated={(food: Food) => {
+        onFoodCreated={() => {
           setCustomFoodCreatorOpen(false);
           mutateDiary();
         }}

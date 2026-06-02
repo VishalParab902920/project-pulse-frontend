@@ -11,11 +11,17 @@ import {
   Plus,
   Loader2,
   CheckCircle2,
+  ChevronDown,
+  Check,
+  Coffee,
+  Sun,
+  Moon,
+  Cookie,
 } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { cacheFoods, getCachedFoods } from "@/lib/offlineCache";
 import { useUIStore } from "@/store/useUIStore";
-import RecipeBuilder from "@/components/RecipeBuilder";
+import CustomFoodCreator from "@/components/nutrition/CustomFoodCreator";
 import LogFoodDrawer from "@/components/nutrition/LogFoodDrawer";
 import type { Food, MealType } from "@/lib/types/nutrition";
 
@@ -65,6 +71,9 @@ export default function FoodSearchModal({
   const [isSearching, setIsSearching] = useState(false);
   const [selectedFood, setSelectedFood] = useState<FoodResult | null>(null);
   const [isOfflineSearch, setIsOfflineSearch] = useState(false);
+  const [selectedMealType, setSelectedMealType] = useState<MealType>(mealType as MealType);
+  const [mealDropdownOpen, setMealDropdownOpen] = useState(false);
+  const mealDropdownRef = useRef<HTMLDivElement>(null);
   const searchVersionRef = useRef(0);
 
   // Barcode state
@@ -73,7 +82,7 @@ export default function FoodSearchModal({
   const [isScannerActive, setIsScannerActive] = useState(false);
   const [barcodeLoading, setBarcodeLoading] = useState(false);
   const [barcodeNotFound, setBarcodeNotFound] = useState(false);
-  const [showRecipeBuilder, setShowRecipeBuilder] = useState(false);
+  const [showCustomCreator, setShowCustomCreator] = useState(false);
   const scannerRef = useRef<HTMLDivElement>(null);
   const html5QrCodeRef = useRef<unknown>(null);
 
@@ -87,9 +96,25 @@ export default function FoodSearchModal({
       setBarcodeValue("");
       setIsScannerActive(false);
       setBarcodeNotFound(false);
+      setShowCustomCreator(false);
+      setMealDropdownOpen(false);
       stopScanner();
+    } else {
+      setSelectedMealType(mealType as MealType);
     }
-  }, [isOpen]);
+  }, [isOpen, mealType]);
+
+  // Close meal dropdown on outside click
+  useEffect(() => {
+    if (!mealDropdownOpen) return;
+    const handleClick = (e: MouseEvent) => {
+      if (mealDropdownRef.current && !mealDropdownRef.current.contains(e.target as Node)) {
+        setMealDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [mealDropdownOpen]);
 
   // Search food catalog — Dual-Layer Hybrid (online API + offline IndexedDB fallback)
   const handleSearch = useCallback(async (query: string) => {
@@ -271,11 +296,63 @@ export default function FoodSearchModal({
             <div className="w-10 h-1 rounded-full bg-white/20" />
           </div>
 
-          {/* Header */}
+          {/* Header with Meal Selector */}
           <div className="flex items-center justify-between px-5 pb-3">
-            <h2 className="text-base font-semibold text-white">
-              Add to {mealType.charAt(0).toUpperCase() + mealType.slice(1)}
-            </h2>
+            <div className="flex items-center gap-2">
+              <h2 className="text-base font-semibold text-white">Add to</h2>
+              <div className="relative" ref={mealDropdownRef}>
+                <button
+                  type="button"
+                  onClick={() => setMealDropdownOpen(!mealDropdownOpen)}
+                  className="flex items-center gap-1.5 bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-sm font-bold text-accent-purple hover:border-accent-purple/30 focus:outline-none focus:border-accent-purple/50 focus:shadow-[0_0_12px_rgba(168,85,247,0.1)] transition-all"
+                >
+                  {selectedMealType.charAt(0).toUpperCase() + selectedMealType.slice(1)}
+                  <ChevronDown className={`h-3.5 w-3.5 text-gray-500 transition-transform ${mealDropdownOpen ? "rotate-180" : ""}`} />
+                </button>
+
+                <AnimatePresence>
+                  {mealDropdownOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -4 }}
+                      transition={{ duration: 0.15 }}
+                      className="absolute top-full left-0 mt-1.5 z-50 rounded-xl bg-[#0a0a0a] border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.6)] backdrop-blur-xl overflow-hidden w-40"
+                    >
+                      {([
+                        { key: "breakfast", label: "Breakfast", icon: Coffee },
+                        { key: "lunch", label: "Lunch", icon: Sun },
+                        { key: "dinner", label: "Dinner", icon: Moon },
+                        { key: "snack", label: "Snack", icon: Cookie },
+                      ] as const).map(({ key, label, icon: Icon }) => {
+                        const isActive = selectedMealType === key;
+                        return (
+                          <button
+                            key={key}
+                            type="button"
+                            onClick={() => {
+                              setSelectedMealType(key);
+                              setMealDropdownOpen(false);
+                            }}
+                            className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-left transition-colors ${
+                              isActive
+                                ? "bg-accent-purple/10 border-l-2 border-accent-purple"
+                                : "hover:bg-white/5 border-l-2 border-transparent"
+                            }`}
+                          >
+                            <Icon className={`h-3.5 w-3.5 ${isActive ? "text-accent-purple" : "text-gray-500"}`} />
+                            <span className={`text-sm font-semibold ${isActive ? "text-accent-purple" : "text-white"}`}>
+                              {label}
+                            </span>
+                            {isActive && <Check className="h-3.5 w-3.5 text-accent-purple ml-auto" />}
+                          </button>
+                        );
+                      })}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </div>
             <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/5 text-gray-400">
               <X className="h-4 w-4" />
             </button>
@@ -345,8 +422,8 @@ export default function FoodSearchModal({
                   )}
                 </div>
 
-                <button onClick={() => setShowRecipeBuilder(true)} className="w-full text-center py-3 text-[11px] font-medium text-accent-purple hover:text-accent-cyan transition-colors">
-                  Can&apos;t find your food? <span className="underline">Create Custom Recipe</span>
+                <button onClick={() => setShowCustomCreator(true)} className="w-full text-center py-3 text-[11px] font-medium text-accent-purple hover:text-accent-cyan transition-colors">
+                  Can&apos;t find your food? <span className="underline">Create Custom Food</span>
                 </button>
               </div>
             ) : (
@@ -413,7 +490,7 @@ export default function FoodSearchModal({
                       Barcode not found in our database or Open Food Facts.
                     </p>
                     <button
-                      onClick={() => setShowRecipeBuilder(true)}
+                      onClick={() => setShowCustomCreator(true)}
                       className="text-[11px] font-medium text-accent-purple hover:text-accent-cyan transition-colors underline"
                     >
                       Create this food manually
@@ -427,11 +504,27 @@ export default function FoodSearchModal({
       </motion.div>
     </AnimatePresence>
 
-    {/* Recipe Builder Overlay */}
-    <RecipeBuilder
-      isOpen={showRecipeBuilder}
-      onClose={() => setShowRecipeBuilder(false)}
-      onRecipeSaved={onFoodLogged}
+    {/* Custom Food Creator */}
+    <CustomFoodCreator
+      isOpen={showCustomCreator}
+      onClose={() => setShowCustomCreator(false)}
+      onFoodCreated={(food: Food) => {
+        setShowCustomCreator(false);
+        setSelectedFood({
+          id: food.id,
+          name: food.name,
+          brand: food.brand,
+          base_unit: food.base_unit,
+          calories_per_100: food.calories_per_100,
+          protein_per_100: food.protein_per_100,
+          carbs_per_100: food.carbs_per_100,
+          fat_per_100: food.fat_per_100,
+          is_custom: food.is_custom,
+          is_verified: food.is_verified,
+          barcode: food.barcode,
+          measures: food.measures,
+        });
+      }}
     />
 
     {/* V2.5 LogFoodDrawer — opens when a food is selected */}
@@ -454,7 +547,7 @@ export default function FoodSearchModal({
           created_by: null,
           measures: selectedFood.measures,
         }}
-        mealType={mealType as MealType}
+        mealType={selectedMealType}
         onLogged={() => {
           setSelectedFood(null);
           onFoodLogged();

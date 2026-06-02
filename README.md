@@ -68,7 +68,8 @@ src/
 │   ├── Dashboard.tsx      # Analytics overlay
 │   ├── Onboarding.tsx     # Setup wizard
 │   └── nutrition/
-│       └── CustomFoodCreator.tsx  # Custom food + serving sizes
+│       ├── CustomFoodCreator.tsx  # Custom food + serving sizes
+│       └── DailyTotals.tsx        # Calorie/macro summary with overflow danger indicators
 ├── hooks/
 │   └── useHealthSync.ts   # Foreground health sync
 └── lib/

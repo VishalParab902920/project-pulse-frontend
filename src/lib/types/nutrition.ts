@@ -23,6 +23,7 @@ export interface Food {
   fat_per_100: number;
   is_custom: boolean;
   is_verified: boolean;
+  is_archived?: boolean;
   created_by: string | null;
   measures: FoodMeasure[];
 }
@@ -71,4 +72,47 @@ export interface FoodCreatePayload {
   fat_per_100: number;
   is_custom: boolean;
   measures: FoodMeasureCreatePayload[];
+}
+
+export interface RecipeIngredientData {
+  food_id: string;
+  weight_g: number;
+  food_name: string | null;
+}
+
+export interface RecipeMeasureData {
+  id: string;
+  measure_name: string;
+  conversion_factor: number;
+  is_default: boolean;
+}
+
+export interface RecipeData {
+  id: string;
+  title: string;
+  instructions: string | null;
+  ingredients: RecipeIngredientData[];
+  created_at: string;
+  food_id?: string;
+  calories_per_100?: number;
+  protein_per_100?: number;
+  carbs_per_100?: number;
+  fat_per_100?: number;
+  measures?: RecipeMeasureData[];
+  total_calories?: number;
+  total_protein?: number;
+  total_carbs?: number;
+  total_fat?: number;
+  total_weight_g?: number;
+}
+
+export interface RecipeUpdatePayload {
+  name: string;
+  instructions: string | null;
+  portions: number;
+  ingredients: {
+    food_id: string;
+    measure_id: string;
+    quantity: number;
+  }[];
 }

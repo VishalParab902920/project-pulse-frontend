@@ -13,13 +13,11 @@ import { apiFetch } from "@/lib/api";
  * a background revalidation fetch. Supports optional polling intervals
  * for silent periodic refresh.
  *
- * Uses the unified apiFetch interceptor for automatic JWT injection,
- * 401 detection, token refresh, and force-logout handling.
- *
- * Render-Phase Key Synchronization:
- * When the cacheKey changes (e.g., date transition), the hook immediately
- * swaps local state to the new key's cached data (or null) in the same
- * render frame — eliminating stale-data visual flickering.
+ * Instant Cache Fallback on Key Transition:
+ * When the cacheKey changes (date switch), the hook synchronously reads
+ * from useCacheStore for the NEW key. If cached data exists, it's served
+ * immediately in the same render frame — zero visual hiccups.
+ * Only shows loading state for completely un-cached dates.
  *
  * @param url - The API endpoint path (e.g., '/api/v2/nutrition/diary')
  * @param dateDependency - Optional date string appended to the URL as a query param and used as cache key suffix
@@ -54,16 +52,26 @@ export function useSWR<T = unknown>(
   const mountedRef = useRef(true);
 
   // =============================================================
-  // Render-Phase Key Synchronization
-  // When cacheKey changes (date/page transition), reset local state
-  // to null immediately. This forces all visual components to render
-  // from zero/empty defaults, then animate up when data arrives.
+  // Render-Phase Key Synchronization with Instant Cache Fallback
+  // When cacheKey changes (date switch), synchronously read the
+  // cache store for the NEW key. Serve cached data instantly if
+  // available — only show loading for completely un-cached keys.
   // =============================================================
   if (cacheKey !== prevKey) {
     setPrevKey(cacheKey);
-    setData(null);
-    setIsLoading(true);
     setError(null);
+
+    // Attempt instant cache read for the new key
+    const newCached = useCacheStore.getState().getCache(cacheKey) as T | null;
+    if (newCached) {
+      // Instant 0ms transition — serve cached data immediately
+      setData(newCached);
+      setIsLoading(false);
+    } else {
+      // No cache for this key — show loading skeleton
+      setData(null);
+      setIsLoading(true);
+    }
   }
 
   // Build the endpoint path with date dependency as query param
@@ -78,7 +86,6 @@ export function useSWR<T = unknown>(
       // Skip network fetch if offline
       const isOnline = typeof navigator !== "undefined" ? navigator.onLine : true;
       if (!isOnline) {
-        // Just serve from cache if available
         const currentCached = useCacheStore.getState().getCache(cacheKey) as T | null;
         if (currentCached && mountedRef.current) {
           setData(currentCached);
@@ -87,7 +94,7 @@ export function useSWR<T = unknown>(
         return;
       }
 
-      // Read token fresh each call — not a dependency to avoid re-render loops
+      // Read token fresh each call
       const token = useUserStore.getState().accessToken || getAccessToken();
       if (!token) return;
 
@@ -99,7 +106,6 @@ export function useSWR<T = unknown>(
       setError(null);
 
       try {
-        // Use apiFetch for automatic 401 handling and token refresh
         const res = await apiFetch(buildEndpoint());
 
         if (!mountedRef.current) return;
@@ -110,13 +116,11 @@ export function useSWR<T = unknown>(
           useCacheStore.getState().setCache(cacheKey, freshData);
           setIsLoading(false);
         } else if (res.status !== 401) {
-          // 401 is handled by apiFetch (refresh + redirect) — only surface other errors
           setError(`API error: ${res.status}`);
           setIsLoading(false);
         }
       } catch {
         if (!mountedRef.current) return;
-        // Network error — serve from cache silently if available
         const fallback = useCacheStore.getState().getCache(cacheKey) as T | null;
         if (fallback) {
           setData(fallback);
@@ -133,31 +137,18 @@ export function useSWR<T = unknown>(
     [buildEndpoint, cacheKey]
   );
 
-  // Background revalidation on key change
+  // Background revalidation on key change — no artificial delay
   useEffect(() => {
     mountedRef.current = true;
 
-    // Add a small delay before populating data so page entrance
-    // animations complete before fill animations begin
-    const animationDelay = 350; // ms — matches page transition duration
-
-    const timer = setTimeout(() => {
-      if (!mountedRef.current) return;
-
-      // Check cache first
-      const currentCached = useCacheStore.getState().getCache(cacheKey) as T | null;
-      if (currentCached) {
-        setData(currentCached);
-        setIsLoading(false);
-      }
-
-      // Then trigger background fetch for fresh data
-      fetchData(currentCached !== null);
-    }, animationDelay);
+    // Trigger background fetch immediately for fresh data.
+    // If cache was already served in render-phase, this is a background revalidation.
+    // If no cache exists, this is the primary fetch.
+    const hasCached = useCacheStore.getState().getCache(cacheKey) !== null;
+    fetchData(hasCached);
 
     return () => {
       mountedRef.current = false;
-      clearTimeout(timer);
     };
   }, [cacheKey, fetchData]);
 
@@ -200,7 +191,6 @@ export function useSWR<T = unknown>(
 
   // Manual mutate (force revalidation — gracefully handles offline)
   const mutate = useCallback(async () => {
-    // If offline, just re-read from cache store (optimistic data is already there)
     const isOnline = typeof navigator !== "undefined" ? navigator.onLine : true;
     if (!isOnline) {
       const currentCached = useCacheStore.getState().getCache(cacheKey) as T | null;

@@ -12,7 +12,6 @@ export const metadata: Metadata = {
   title: "Kayan-AI",
   description: "Your personal AI-powered fitness concierge. Track nutrition, log workouts, and get intelligent coaching, all through voice or text. Built for anyone ready to get fit.",
   metadataBase: new URL("https://kayan-fit.vercel.app"),
-  themeColor: "#050505",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -42,6 +41,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
+  themeColor: "#050505",
   viewportFit: "auto",
   width: "device-width",
   initialScale: 1,
