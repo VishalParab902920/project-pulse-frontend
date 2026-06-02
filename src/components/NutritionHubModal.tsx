@@ -9,6 +9,8 @@ import { apiFetch } from "@/lib/api";
 import { useUIStore } from "@/store/useUIStore";
 import { useDateStore } from "@/store/useDateStore";
 import RecipeBuilder from "@/components/RecipeBuilder";
+import CustomFoodCreator from "@/components/nutrition/CustomFoodCreator";
+import type { Food } from "@/lib/types/nutrition";
 
 interface RecipeData {
   id: string;
@@ -49,15 +51,8 @@ export default function NutritionHubModal({ isOpen, onClose, mealType, onFoodLog
   const [isDeletingRecipe, setIsDeletingRecipe] = useState(false);
   const [servingMultiplier, setServingMultiplier] = useState(1);
 
-  // Custom food form
-  const [customName, setCustomName] = useState("");
-  const [customBrand, setCustomBrand] = useState("");
-  const [customCal, setCustomCal] = useState("");
-  const [customPro, setCustomPro] = useState("");
-  const [customCarb, setCustomCarb] = useState("");
-  const [customFat, setCustomFat] = useState("");
-  const [isSavingCustom, setIsSavingCustom] = useState(false);
-  const [customSaved, setCustomSaved] = useState(false);
+  // Custom food creator
+  const [showCustomCreator, setShowCustomCreator] = useState(false);
 
   // Recipes
   const [recipes, setRecipes] = useState<RecipeData[]>([]);
@@ -66,12 +61,14 @@ export default function NutritionHubModal({ isOpen, onClose, mealType, onFoodLog
   useEffect(() => {
     if (!isOpen) {
       setRecipeSearchQuery("");
-      setCustomSaved(false);
       setSelectedRecipe(null);
       setServingMultiplier(1);
-      setCustomName(""); setCustomBrand(""); setCustomCal(""); setCustomPro(""); setCustomCarb(""); setCustomFat("");
+      setShowCustomCreator(false);
     } else {
       if (initialTab) setActiveTab(initialTab);
+      if (initialTab === "custom") {
+        setShowCustomCreator(true);
+      }
     }
   }, [isOpen, initialTab]);
 
@@ -127,30 +124,6 @@ export default function NutritionHubModal({ isOpen, onClose, mealType, onFoodLog
       }
     } catch {} finally { setIsDeletingRecipe(false); }
   }, [accessToken, fetchRecipes]);
-
-  const handleSaveCustomFood = useCallback(async () => {
-    if (!customName.trim() || !accessToken) return;
-    setIsSavingCustom(true);
-    try {
-      const res = await apiFetch(`/api/v2/nutrition/food`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: customName.trim(),
-          brand: customBrand.trim() || null,
-          calories_per_100g: parseFloat(customCal) || 0,
-          protein_per_100g: parseFloat(customPro) || 0,
-          carbs_per_100g: parseFloat(customCarb) || 0,
-          fat_per_100g: parseFloat(customFat) || 0,
-        }),
-      });
-      if (res.ok) {
-        setCustomSaved(true);
-        setCustomName(""); setCustomBrand(""); setCustomCal(""); setCustomPro(""); setCustomCarb(""); setCustomFat("");
-        setTimeout(() => setCustomSaved(false), 3000);
-      }
-    } catch {} finally { setIsSavingCustom(false); }
-  }, [customName, customBrand, customCal, customPro, customCarb, customFat, accessToken]);
 
   const filteredRecipes = recipeSearchQuery.length > 0
     ? recipes.filter(r => r.title.toLowerCase().includes(recipeSearchQuery.toLowerCase()))
@@ -241,19 +214,22 @@ export default function NutritionHubModal({ isOpen, onClose, mealType, onFoodLog
 
             {/* Custom Food Tab */}
             {activeTab === "custom" && (
-              <div className="space-y-3">
-                <input type="text" value={customName} onChange={(e) => setCustomName(e.target.value)} placeholder="Food name" autoFocus className="w-full rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-sm text-white placeholder-gray-600 outline-none focus:border-accent-purple" />
-                <input type="text" value={customBrand} onChange={(e) => setCustomBrand(e.target.value)} placeholder="Brand (optional)" className="w-full rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-sm text-white placeholder-gray-600 outline-none focus:border-accent-purple" />
-                <p className="text-[10px] text-gray-500 font-medium">Macros per 100g:</p>
-                <div className="grid grid-cols-2 gap-2">
-                  <input type="number" value={customCal} onChange={(e) => setCustomCal(e.target.value)} placeholder="Calories" className="rounded-xl bg-white/5 border border-white/10 px-3 py-2.5 text-xs text-white placeholder-gray-600 outline-none focus:border-accent-purple [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
-                  <input type="number" value={customPro} onChange={(e) => setCustomPro(e.target.value)} placeholder="Protein (g)" className="rounded-xl bg-white/5 border border-white/10 px-3 py-2.5 text-xs text-white placeholder-gray-600 outline-none focus:border-accent-purple [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
-                  <input type="number" value={customCarb} onChange={(e) => setCustomCarb(e.target.value)} placeholder="Carbs (g)" className="rounded-xl bg-white/5 border border-white/10 px-3 py-2.5 text-xs text-white placeholder-gray-600 outline-none focus:border-accent-purple [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
-                  <input type="number" value={customFat} onChange={(e) => setCustomFat(e.target.value)} placeholder="Fat (g)" className="rounded-xl bg-white/5 border border-white/10 px-3 py-2.5 text-xs text-white placeholder-gray-600 outline-none focus:border-accent-purple [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+              <div className="flex flex-col items-center justify-center py-12 text-center space-y-4">
+                <div className="w-14 h-14 rounded-2xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center">
+                  <Plus className="h-6 w-6 text-purple-400" />
                 </div>
-                {customSaved && <p className="text-xs text-status-success text-center">Food saved to your library!</p>}
-                <button onClick={handleSaveCustomFood} disabled={!customName.trim() || isSavingCustom} className="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-accent-indigo via-accent-purple to-accent-cyan py-3 text-xs font-semibold text-white disabled:opacity-50 shadow-[0_0_10px_rgba(168,85,247,0.3)]">
-                  {isSavingCustom ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <><Plus className="h-3.5 w-3.5" />Save Custom Food</>}
+                <div>
+                  <p className="text-sm font-medium text-white mb-1">Create Custom Food</p>
+                  <p className="text-[11px] text-gray-500 max-w-[240px]">
+                    Define nutrition per 100g/ml with custom serving sizes like Scoop, Slice, or Cup.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowCustomCreator(true)}
+                  className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-500 via-purple-500 to-cyan-500 px-6 py-3 text-xs font-semibold text-white shadow-[0_0_20px_rgba(168,85,247,0.25)] hover:shadow-[0_0_30px_rgba(168,85,247,0.4)] active:scale-[0.98] transition-all"
+                >
+                  <Plus className="h-4 w-4" />
+                  Open Food Creator
                 </button>
               </div>
             )}
@@ -362,6 +338,17 @@ export default function NutritionHubModal({ isOpen, onClose, mealType, onFoodLog
 
     {/* Recipe Builder */}
     <RecipeBuilder isOpen={showRecipeBuilder} onClose={() => setShowRecipeBuilder(false)} onRecipeSaved={() => { setShowRecipeBuilder(false); fetchRecipes(); }} />
+
+    {/* V2.5 Custom Food Creator */}
+    <CustomFoodCreator
+      isOpen={showCustomCreator}
+      onClose={() => setShowCustomCreator(false)}
+      onFoodCreated={(food: Food) => {
+        setShowCustomCreator(false);
+        onFoodLogged();
+        onClose();
+      }}
+    />
     </>
   );
 }

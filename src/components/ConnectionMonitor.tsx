@@ -19,7 +19,7 @@ import { useUserStore } from "@/store/useUserStore";
  */
 
 export default function ConnectionMonitor() {
-  const { isOnline, updateOnlineStatus, syncQueue, loadQueueFromStorage } =
+  const { isOnline, updateOnlineStatus, pendingLogs, loadQueueFromStorage } =
     useSyncStore();
   const { accessToken } = useUserStore();
 
@@ -54,10 +54,10 @@ export default function ConnectionMonitor() {
 
   // Auto-flush when coming back online with pending items
   useEffect(() => {
-    if (isOnline && syncQueue.length > 0 && accessToken) {
+    if (isOnline && pendingLogs.length > 0 && accessToken) {
       useSyncStore.getState().flushSyncQueue(accessToken);
     }
-  }, [isOnline, syncQueue.length, accessToken]);
+  }, [isOnline, pendingLogs.length, accessToken]);
 
   return (
     <AnimatePresence>
@@ -74,9 +74,9 @@ export default function ConnectionMonitor() {
             <span className="text-[11px] font-medium text-status-amber">
               Working Offline
             </span>
-            {syncQueue.length > 0 && (
+            {pendingLogs.length > 0 && (
               <span className="text-[9px] text-gray-500">
-                • {syncQueue.length} pending
+                • {pendingLogs.length} pending
               </span>
             )}
           </div>

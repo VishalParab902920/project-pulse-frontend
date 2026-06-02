@@ -75,6 +75,18 @@ export function useSWR<T = unknown>(
 
   const fetchData = useCallback(
     async (isBackground = false) => {
+      // Skip network fetch if offline
+      const isOnline = typeof navigator !== "undefined" ? navigator.onLine : true;
+      if (!isOnline) {
+        // Just serve from cache if available
+        const currentCached = useCacheStore.getState().getCache(cacheKey) as T | null;
+        if (currentCached && mountedRef.current) {
+          setData(currentCached);
+          setIsLoading(false);
+        }
+        return;
+      }
+
       // Read token fresh each call — not a dependency to avoid re-render loops
       const token = useUserStore.getState().accessToken || getAccessToken();
       if (!token) return;
@@ -104,7 +116,13 @@ export function useSWR<T = unknown>(
         }
       } catch {
         if (!mountedRef.current) return;
-        setError("Network error");
+        // Network error — serve from cache silently if available
+        const fallback = useCacheStore.getState().getCache(cacheKey) as T | null;
+        if (fallback) {
+          setData(fallback);
+        } else {
+          setError("Network error");
+        }
         setIsLoading(false);
       } finally {
         if (mountedRef.current) {
@@ -143,6 +161,27 @@ export function useSWR<T = unknown>(
     };
   }, [cacheKey, fetchData]);
 
+  // Listen for external cache updates (e.g., from sync reconciliation)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const handleCacheUpdate = (event: Event) => {
+      const detail = (event as CustomEvent).detail;
+      if (detail?.cacheKey === cacheKey) {
+        const freshCached = useCacheStore.getState().getCache(cacheKey) as T | null;
+        if (freshCached) {
+          setData(freshCached);
+          setIsLoading(false);
+        }
+      }
+    };
+
+    window.addEventListener("pulse:cache-update", handleCacheUpdate);
+    return () => {
+      window.removeEventListener("pulse:cache-update", handleCacheUpdate);
+    };
+  }, [cacheKey]);
+
   // Polling interval for silent revalidation
   useEffect(() => {
     if (!pollIntervalMs || pollIntervalMs <= 0) return;
@@ -159,10 +198,20 @@ export function useSWR<T = unknown>(
     };
   }, [pollIntervalMs, fetchData]);
 
-  // Manual mutate (force revalidation)
+  // Manual mutate (force revalidation — gracefully handles offline)
   const mutate = useCallback(async () => {
+    // If offline, just re-read from cache store (optimistic data is already there)
+    const isOnline = typeof navigator !== "undefined" ? navigator.onLine : true;
+    if (!isOnline) {
+      const currentCached = useCacheStore.getState().getCache(cacheKey) as T | null;
+      if (currentCached) {
+        setData(currentCached);
+        setIsLoading(false);
+      }
+      return;
+    }
     await fetchData(false);
-  }, [fetchData]);
+  }, [fetchData, cacheKey]);
 
   return { data, isLoading, isRevalidating, error, mutate };
 }

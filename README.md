@@ -20,6 +20,8 @@ Next.js 16 (App Router) frontend for Project Pulse — AI-Native Fitness Concier
 - **Dashboard:** Weight trend chart, consistency tracker, biometrics, AI coaching insight
 - **Onboarding:** 3-step wizard (persona, preferences, goals)
 - **Offline-First:** IndexedDB storage + automatic sync on reconnect
+- **Custom Food Creator:** Define custom foods with macros per 100g/ml and attach custom serving sizes (measures). Accessible directly from the diary page.
+- **Offline Food Search:** LRU-cached local food dictionary for offline search fallback
 - **BYOK Settings:** Encrypted API key management
 - **Health Sync:** Foreground visibility-based step/heart rate sync
 
@@ -64,7 +66,9 @@ src/
 │   ├── ParsedCards.tsx    # Food/workout/biometric cards
 │   ├── ProgressRings.tsx  # SVG ring indicators
 │   ├── Dashboard.tsx      # Analytics overlay
-│   └── Onboarding.tsx     # Setup wizard
+│   ├── Onboarding.tsx     # Setup wizard
+│   └── nutrition/
+│       └── CustomFoodCreator.tsx  # Custom food + serving sizes
 ├── hooks/
 │   └── useHealthSync.ts   # Foreground health sync
 └── lib/
@@ -72,6 +76,7 @@ src/
     ├── utils.ts           # cn() utility
     ├── supabase.ts        # Supabase client
     ├── indexedDb.ts       # Offline storage
+    ├── offlineCache.ts    # LRU food dictionary cache
     └── image-utils.ts     # Canvas compression
 ```
 

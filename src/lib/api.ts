@@ -145,22 +145,20 @@ export interface OfflineAwareResult {
  * Offline-aware API request utility for mutations (POST/PUT/DELETE).
  *
  * Before making a network request, checks connection status.
- * If offline, queues the action for later sync and returns a
- * synthetic success response for optimistic UI updates.
+ * If offline, returns a synthetic queued response for optimistic UI updates.
  *
- * Now uses apiFetch internally for automatic 401 handling.
+ * Note: For diary-specific offline logging, use useSyncStore.createOfflineLog()
+ * which provides full Render-Phase Merging support.
  */
 export async function offlineAwareFetch(
   endpoint: string,
   method: "POST" | "PUT" | "DELETE",
   payload: Record<string, unknown> | null = null
 ): Promise<OfflineAwareResult> {
-  const { isOnline, queueOfflineAction } = useSyncStore.getState();
+  const { isOnline } = useSyncStore.getState();
 
-  // If offline, queue the action and return synthetic success
+  // If offline, return synthetic queued response
   if (!isOnline) {
-    await queueOfflineAction(endpoint, method, payload);
-
     return {
       ok: true,
       queued: true,
@@ -197,16 +195,15 @@ export async function offlineAwareFetch(
       status: res.status,
       data,
     };
-  } catch (err) {
-    // Network error during fetch — queue for later
-    console.warn(`[API] Network error on ${method} ${endpoint} — queuing offline`);
-    await queueOfflineAction(endpoint, method, payload);
+  } catch {
+    // Network error during fetch
+    console.warn(`[API] Network error on ${method} ${endpoint}`);
 
     return {
-      ok: true,
-      queued: true,
-      status: 202,
-      data: { message: "Queued for sync (network error)", offline: true },
+      ok: false,
+      queued: false,
+      status: 0,
+      data: { message: "Network error", offline: true },
     };
   }
 }
