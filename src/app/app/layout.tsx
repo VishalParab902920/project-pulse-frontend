@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import HydrationGuard from "@/components/HydrationGuard";
@@ -9,6 +10,7 @@ import ConnectionMonitor from "@/components/ConnectionMonitor";
 import PerformanceMonitor from "@/components/PerformanceMonitor";
 import OmnibarModal from "@/components/OmnibarModal";
 import { useOnboardingGuard } from "@/hooks/useOnboardingGuard";
+import { useUserStore } from "@/store/useUserStore";
 import { useUIStore } from "@/store/useUIStore";
 
 /**
@@ -48,6 +50,14 @@ function AppShellContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { isResolving } = useOnboardingGuard();
   const { isOmnibarOpen, closeOmnibar, isModalOpen } = useUIStore();
+  const hydratePreferences = useUserStore((state) => state.hydratePreferences);
+
+  // Trigger IndexedDB hydration once on first client mount.
+  // This flips isHydrated to true (via finally in hydratePreferences),
+  // unblocking the onboarding and profile pages that gate on !isHydrated.
+  useEffect(() => {
+    hydratePreferences();
+  }, [hydratePreferences]);
 
   if (isResolving) {
     return <LoadingFallback />;

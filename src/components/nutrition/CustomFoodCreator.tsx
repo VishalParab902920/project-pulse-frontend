@@ -2,16 +2,20 @@
 
 import { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Plus, Trash2, Loader2, Check, FlaskConical } from "lucide-react";
+import { X, Plus, Trash2, Loader2, Check, FlaskConical, AlertTriangle } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { cacheFoods } from "@/lib/offlineCache";
 import type { Food, FoodCreatePayload, FoodMeasureCreatePayload } from "@/lib/types/nutrition";
 
 /**
- * CustomFoodCreator — V2.5 Custom Food + Nested Servings Interface
+ * CustomFoodCreator — V2.5.2 Custom Food + Nested Servings Interface
  *
  * Allows users to define a new food with macros per 100g/ml
  * and attach one or more custom serving sizes (measures).
+ *
+ * Phase 4: Allergen Tag Selector — visual click-pill grid of major
+ * allergen categories. Selected keys are appended to the POST payload's
+ * `allergens` array on form submission.
  *
  * Tech-Noir design: deep black bg, glassmorphism cards, glowing accents.
  */
@@ -45,6 +49,24 @@ function sanitizeNumeric(raw: string): string {
   return value;
 }
 
+// ---------------------------------------------------------------------------
+// Phase 4: Major allergen classification list
+// ---------------------------------------------------------------------------
+
+const ALLERGEN_CATEGORIES = [
+  "peanuts",
+  "tree nuts",
+  "dairy",
+  "eggs",
+  "wheat",
+  "soy",
+  "fish",
+  "shellfish",
+  "sesame",
+] as const;
+
+type AllergenCategory = (typeof ALLERGEN_CATEGORIES)[number];
+
 export default function CustomFoodCreator({
   isOpen,
   onClose,
@@ -64,6 +86,11 @@ export default function CustomFoodCreator({
 
   // Custom measures
   const [measures, setMeasures] = useState<MeasureRow[]>([]);
+
+  // Phase 4: Allergen selection
+  const [selectedAllergens, setSelectedAllergens] = useState<Set<AllergenCategory>>(
+    new Set()
+  );
 
   // Submission state
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -97,6 +124,19 @@ export default function CustomFoodCreator({
     },
     []
   );
+
+  // Phase 4: Toggle allergen pill
+  const toggleAllergen = useCallback((allergen: AllergenCategory) => {
+    setSelectedAllergens((prev) => {
+      const next = new Set(prev);
+      if (next.has(allergen)) {
+        next.delete(allergen);
+      } else {
+        next.add(allergen);
+      }
+      return next;
+    });
+  }, []);
 
   // Validate form
   const isValid =
@@ -136,6 +176,8 @@ export default function CustomFoodCreator({
       fat_per_100: parseFloat(fat),
       is_custom: true,
       measures: validMeasures,
+      // Phase 4: append selected allergen keys
+      allergens: Array.from(selectedAllergens),
     };
 
     try {
@@ -162,7 +204,7 @@ export default function CustomFoodCreator({
     } finally {
       setIsSubmitting(false);
     }
-  }, [isValid, name, brand, barcode, baseUnit, calories, protein, carbs, fat, measures, onFoodCreated, onClose]);
+  }, [isValid, name, brand, barcode, baseUnit, calories, protein, carbs, fat, measures, selectedAllergens, onFoodCreated, onClose]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Reset form
   const resetForm = useCallback(() => {
@@ -175,6 +217,7 @@ export default function CustomFoodCreator({
     setCarbs("");
     setFat("");
     setMeasures([]);
+    setSelectedAllergens(new Set());
     setError(null);
   }, []);
 
@@ -344,6 +387,39 @@ export default function CustomFoodCreator({
                 </div>
               </div>
 
+              {/* ── Phase 4: Allergen Tag Selector ── */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="h-3.5 w-3.5 text-status-rose flex-shrink-0" />
+                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
+                    Allergen Categories
+                  </p>
+                </div>
+                <p className="text-[10px] text-gray-600 italic">
+                  Select any allergens present in this food.
+                </p>
+                <div className="flex flex-wrap gap-2 pt-1">
+                  {ALLERGEN_CATEGORIES.map((allergen) => {
+                    const isSelected = selectedAllergens.has(allergen);
+                    return (
+                      <button
+                        key={allergen}
+                        type="button"
+                        onClick={() => toggleAllergen(allergen)}
+                        className={`px-3 py-1.5 rounded-pill text-xs cursor-pointer transition-all capitalize ${
+                          isSelected
+                            ? "bg-status-rose/20 border border-status-rose text-white font-bold animate-pulse"
+                            : "bg-white/5 border border-white/10 text-gray-400 hover:bg-white/10"
+                        }`}
+                        aria-pressed={isSelected}
+                      >
+                        {allergen}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
               {/* Custom Servings / Portions Section */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
@@ -389,7 +465,9 @@ export default function CustomFoodCreator({
                           type="text"
                           inputMode="decimal"
                           value={row.conversion_factor}
-                          onChange={(e) => updateMeasure(row.id, "conversion_factor", e.target.value)}
+                          onChange={(e) =>
+                            updateMeasure(row.id, "conversion_factor", e.target.value)
+                          }
                           placeholder="150"
                           className="w-20 rounded-lg bg-white/5 border border-white/10 px-3 py-2 text-xs text-white placeholder-gray-600 outline-none focus:border-purple-500 tabular-nums transition-all"
                         />

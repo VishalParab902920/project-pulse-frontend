@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Search, Plus, Trash2, Loader2, Check, ChefHat, ChevronDown } from "lucide-react";
+import { X, Search, Plus, Trash2, Loader2, Check, ChefHat, ChevronDown, AlertTriangle } from "lucide-react";
 import { useUserStore } from "@/store/useUserStore";
 import { getAccessToken } from "@/lib/auth";
 import { apiFetch } from "@/lib/api";
@@ -243,6 +243,26 @@ export default function CreateRecipe({ isOpen, onClose, onRecipeSaved }: CreateR
   const removeIngredient = useCallback((index: number) => {
     setIngredients((prev) => prev.filter((_, i) => i !== index));
   }, []);
+
+  // =============================================================
+  // Phase 4: Real-Time Aggregated Allergen Profile
+  // =============================================================
+
+  /** Compile a deduplicated allergen list from all current ingredients (case-insensitive). */
+  const aggregatedAllergens = useMemo<string[]>(() => {
+    const seen = new Set<string>();
+    const result: string[] = [];
+    for (const ingredient of ingredients) {
+      for (const allergen of ingredient.food.allergens ?? []) {
+        const normalized = allergen.toLowerCase().trim();
+        if (normalized && !seen.has(normalized)) {
+          seen.add(normalized);
+          result.push(allergen.trim());
+        }
+      }
+    }
+    return result;
+  }, [ingredients]);
 
   // =============================================================
   // Real-Time Macro Summation (Eliminates NaN bug)
@@ -495,6 +515,30 @@ export default function CreateRecipe({ isOpen, onClose, onRecipeSaved }: CreateR
                     />
                   );
                 })}
+
+                {/* ── Phase 4: Allergen Profile — Read-Only Derived Tags ── */}
+                <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3 mt-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <AlertTriangle className="h-3.5 w-3.5 text-status-rose flex-shrink-0" />
+                    <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
+                      Allergen Profile
+                    </span>
+                  </div>
+                  {aggregatedAllergens.length === 0 ? (
+                    <p className="text-[10px] text-gray-600 italic">None detected</p>
+                  ) : (
+                    <div className="flex flex-wrap gap-1.5">
+                      {aggregatedAllergens.map((allergen) => (
+                        <span
+                          key={allergen}
+                          className="bg-status-rose/10 text-status-rose border border-status-rose/20 text-xs px-2.5 py-1 rounded-pill select-none"
+                        >
+                          {allergen}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
 
                 {/* Total Recipe Macros Preview */}
                 <div className="rounded-xl border border-white/10 bg-white/[0.02] p-3 mt-3">

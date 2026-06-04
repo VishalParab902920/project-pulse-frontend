@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 /**
- * Next.js Edge Middleware — Strict Auth Guard
+ * Next.js Edge Proxy — Strict Auth Guard
  *
  * Intercepts all requests to /app and /app/* routes and verifies the
  * presence of the Supabase access token cookie. Issues a hard redirect
@@ -12,7 +12,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 const TOKEN_COOKIE = "sb-access-token";
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const token = request.cookies.get(TOKEN_COOKIE)?.value;
 

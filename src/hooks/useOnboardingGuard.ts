@@ -6,19 +6,21 @@ import { useUserStore } from "@/store/useUserStore";
 import { getAccessToken } from "@/lib/auth";
 import { apiFetch } from "@/lib/api";
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
-
 /**
  * useOnboardingGuard — Route guard ensuring biometrics are set.
  *
- * On mount (for authenticated users not already on /app/onboarding):
- * - Fetches the user's biometrics from the backend.
- * - If biometrics are missing or target_calories is 0, redirects to /app/onboarding.
- * - If biometrics are verified and user is on /app/onboarding, redirects to /app.
+ * Architecture note (404 state-drift fix):
+ * The backend now ALWAYS returns 200 OK from GET /api/v2/profile/biometrics.
+ * Newly registered (or migrated) users get a blank record with null physiological
+ * fields. This guard evaluates data.weight_kg and data.height_cm to determine
+ * if onboarding is still required — NOT the HTTP status code.
+ *
+ * This eliminates the infinite spinner caused by SWR's isLoading getting stuck
+ * on an unhandled 404 exception in the fetch wrapper.
  *
  * Returns:
  * - isResolving: true while the check is in progress (show loading spinner)
- * - biometricsLoaded: true once biometrics are confirmed present
+ * - biometricsLoaded: true once biometrics are confirmed present and complete
  */
 
 interface OnboardingGuardResult {
@@ -45,41 +47,61 @@ export function useOnboardingGuard(): OnboardingGuardResult {
 
     async function checkBiometrics() {
       try {
-        const res = await apiFetch(`/api/v2/profile/biometrics`);
+        const res = await apiFetch(`/api/v2/profile/biometrics?_t=${Date.now()}`, {
+          cache: "no-store",
+          headers: {
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            Pragma: "no-cache",
+            Expires: "0",
+          },
+        });
 
         if (res.ok) {
           const data = await res.json();
 
-          // Biometrics exist and have meaningful values
+          // The backend guarantees 200 OK for all authenticated users.
+          // A blank (un-onboarded) record has null weight_kg and height_cm.
+          // Check these physiological baseline fields — NOT a 404 status — to
+          // determine if onboarding is required. This is the stable contract.
           const hasValidBiometrics =
-            data &&
-            data.target_calories &&
+            data != null &&
+            data.weight_kg !== null &&
+            data.weight_kg !== undefined &&
+            data.height_cm !== null &&
+            data.height_cm !== undefined &&
+            data.target_calories != null &&
             data.target_calories > 0;
 
           if (hasValidBiometrics) {
+            // Onboarding complete — baseline is filled.
             setBiometricsLoaded(true);
-            // Allow users to stay on onboarding for re-editing
+            // If the user somehow landed on /app/onboarding after completing
+            // onboarding (e.g. via browser back), send them to the dashboard.
+            if (isOnOnboarding) {
+              router.replace("/app");
+            }
           } else {
-            // Biometrics missing or incomplete — redirect to onboarding
+            // Biometrics incomplete (blank record) — redirect to onboarding.
             setBiometricsLoaded(false);
             if (!isOnOnboarding) {
               router.replace("/app/onboarding");
-              return;
             }
           }
-        } else if (res.status === 404) {
-          // No biometrics record exists — redirect to onboarding
-          setBiometricsLoaded(false);
-          if (!isOnOnboarding) {
-            router.replace("/app/onboarding");
-            return;
-          }
         } else {
-          // API error — allow through (don't block on transient failures)
+          // Non-ok response (transient 5xx, etc.).
+          // The DB invariant guarantees a row exists for every authenticated user,
+          // so a non-200 here is always a transient server failure — allow through
+          // gracefully rather than redirecting to onboarding and hard-locking the UI.
+          // A genuine 404 would indicate the endpoint URL has changed, not a
+          // missing biometrics record.
+          console.warn(
+            `[ONBOARDING GUARD] Unexpected HTTP ${res.status} from /biometrics — allowing through gracefully.`
+          );
           setBiometricsLoaded(true);
         }
       } catch (err) {
-        // Network error — allow through gracefully
+        // Network error — allow through gracefully to avoid hard-locking the UI
+        // on connectivity issues (e.g. captive portals, server restart).
         console.warn("[ONBOARDING GUARD] Biometrics check failed:", err);
         setBiometricsLoaded(true);
       } finally {

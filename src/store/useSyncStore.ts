@@ -50,6 +50,11 @@ export interface PendingNutritionLog {
   food: Food;
   /** Hydrated measure context for card rendering */
   measure: FoodMeasure;
+  /**
+   * Phase 4: If true, the sync flush will send X-Allergen-Override: true
+   * in the request header to bypass the backend 409 allergen block.
+   */
+  allergenOverride?: boolean;
 }
 
 interface SyncState {
@@ -77,6 +82,8 @@ interface SyncState {
     food: Food;
     userId: string;
     targetDate: string;
+    /** Phase 4: If true, sync flush sends X-Allergen-Override: true header */
+    allergenOverride?: boolean;
   }) => Promise<NutritionLog>;
   /**
    * Process sync queue — FIFO sequential flush.
@@ -184,7 +191,7 @@ export const useSyncStore = create<SyncState>((set, get) => ({
     }
   },
 
-  createOfflineLog: async ({ food_id, measure_id, quantity, meal_type, logged_at, food, userId, targetDate }) => {
+  createOfflineLog: async ({ food_id, measure_id, quantity, meal_type, logged_at, food, userId, targetDate, allergenOverride }) => {
     // Generate client-side UUID
     const clientId = generateClientUUID();
 
@@ -224,6 +231,7 @@ export const useSyncStore = create<SyncState>((set, get) => ({
       calculated_fat: macros.calculated_fat,
       food,
       measure,
+      allergenOverride: allergenOverride ?? false,
     };
 
     // Persist to IndexedDB
@@ -304,6 +312,8 @@ export const useSyncStore = create<SyncState>((set, get) => ({
             headers: {
               "Content-Type": "application/json",
               Authorization: `Bearer ${token}`,
+              // Phase 4: forward allergen override header when user explicitly approved
+              ...(item.allergenOverride ? { "X-Allergen-Override": "true" } : {}),
             },
             body: JSON.stringify(item.payload),
           });

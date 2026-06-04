@@ -159,10 +159,14 @@ export function useSWR<T = unknown>(
     const handleCacheUpdate = (event: Event) => {
       const detail = (event as CustomEvent).detail;
       if (detail?.cacheKey === cacheKey) {
-        const freshCached = useCacheStore.getState().getCache(cacheKey) as T | null;
-        if (freshCached) {
-          setData(freshCached);
-          setIsLoading(false);
+        if (detail?.revalidate) {
+           fetchData(false); // Force network refetch
+        } else {
+           const freshCached = useCacheStore.getState().getCache(cacheKey) as T | null;
+           if (freshCached) {
+             setData(freshCached);
+             setIsLoading(false);
+           }
         }
       }
     };
@@ -204,4 +208,15 @@ export function useSWR<T = unknown>(
   }, [fetchData, cacheKey]);
 
   return { data, isLoading, isRevalidating, error, mutate };
+}
+
+/** Global utility to force revalidation for all mounted useSWR hooks listening to this key */
+export function globalMutate(cacheKey: string) {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(
+      new CustomEvent("pulse:cache-update", {
+        detail: { cacheKey, revalidate: true },
+      })
+    );
+  }
 }

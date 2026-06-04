@@ -6,6 +6,7 @@ import { Minus, Plus, Scale, Loader2, Check } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { useUIStore } from "@/store/useUIStore";
 import { useDateStore } from "@/store/useDateStore";
+import { globalMutate } from "@/hooks/useSWR";
 
 /**
  * WeightLogModal — Glassmorphic slide-up weight dial overlay.
@@ -103,6 +104,10 @@ export default function WeightLogModal({
       if (res.ok) {
         setLogged(true);
         onWeightLogged();
+        globalMutate("/api/v2/profile/biometrics");
+        globalMutate("/api/v2/nutrition/diary");
+        globalMutate("/api/v2/profile/biometrics/weight-history?days=30");
+        
         // Auto-close after brief success feedback
         setTimeout(() => {
           onClose();
